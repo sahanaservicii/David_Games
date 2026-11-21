@@ -109,8 +109,37 @@ function updateVoiceChip(text, listening = false) {
 }
 function tapKey(code, ms = 420) {
   keys[code] = true;
-  if (code === 'Space') pressed.Space = true;
+  pressed[code] = true;
   setTimeout(() => { keys[code] = false; }, ms);
+}
+/* ---------- Сенсорное управление ---------- */
+function isTouchDevice() {
+  return (window.matchMedia && matchMedia('(pointer: coarse)').matches) ||
+    ('ontouchstart' in window) || window.innerWidth <= 900;
+}
+function updateTouchControls() {
+  const el = $('#touchControls');
+  if (el) el.classList.toggle('hidden', !(state.mode === 'play' && isTouchDevice()));
+}
+function setVirtualKey(code, down) {
+  if (down && !keys[code]) pressed[code] = true;
+  keys[code] = down;
+}
+function bindTouchControls() {
+  document.querySelectorAll('#touchControls .touch-btn').forEach(btn => {
+    const code = btn.dataset.key;
+    const release = () => { btn.classList.remove('hold'); setVirtualKey(code, false); };
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      btn.classList.add('hold');
+      setVirtualKey(code, true);
+      try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignored */ }
+    });
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('lostpointercapture', release);
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  });
 }
 const Voice = {
   rec: null,
@@ -2044,11 +2073,15 @@ function setMode(mode) {
   if (!state.project) return;
   state.mode = mode;
   const playing = mode === 'play';
+  document.body.classList.toggle('playing-mode', playing);
   $('#editorGrid').classList.toggle('playing', playing);
   $('#btnMode').textContent = playing ? '✏️ В редактор' : '▶ Играть';
   $('#btnMode').className = playing ? 'btn btn-accent' : 'btn btn-primary';
   $('#playHud').classList.toggle('hidden', !playing);
   $('#resultOverlay').classList.add('hidden');
+  for (const k in keys) keys[k] = false;
+  for (const k in pressed) delete pressed[k];
+  updateTouchControls();
   if (!playing) { Voice.stop(); Speech.stop(); }
   state.engine.reset();
   state.engine.setPlaying(playing);
@@ -2444,6 +2477,7 @@ function openHelp() {
       <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух.</li>
       <li><b>Сохрани или поделись</b>: «💾 Сохранить» — в браузере, «🌟 В галерею» — на общей странице, «🚀 Поделиться» — ссылка другу.</li>
     </ol>
+    <p class="modal-sub">📱 На телефоне во время игры под полем появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. Игры с выбором ответа работают простым касанием по экрану.</p>
     <div class="modal-actions"><button class="btn btn-primary" data-modal="close">Понятно! 🎮</button></div>`);
 }
 function utf8ToB64(str) {
@@ -2520,6 +2554,8 @@ function cellFromEvent(e) {
   };
 }
 function bindEvents() {
+  bindTouchControls();
+  window.addEventListener('resize', updateTouchControls);
   $('#templateCards').addEventListener('click', e => {
     const b = e.target.closest('[data-create]');
     if (!b) return;

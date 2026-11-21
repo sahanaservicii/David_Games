@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#6c4ce0">
   <title>ИгроЛаборатория — создай свою игру!</title>
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body>
   <div class="app-shell">
@@ -110,6 +110,17 @@
               <div id="interactiveLayer" class="interactive-layer"></div>
               <div id="resultOverlay" class="result-overlay hidden"></div>
             </div>
+            <div id="touchControls" class="touch-controls hidden" aria-label="Кнопки управления на экране">
+              <div class="touch-pad">
+                <button class="touch-btn touch-up" data-key="ArrowUp" aria-label="Вверх">▲</button>
+                <button class="touch-btn touch-left" data-key="ArrowLeft" aria-label="Влево">◀</button>
+                <button class="touch-btn touch-down" data-key="ArrowDown" aria-label="Вниз">▼</button>
+                <button class="touch-btn touch-right" data-key="ArrowRight" aria-label="Вправо">▶</button>
+              </div>
+              <button class="touch-btn touch-action" data-key="Space" aria-label="Прыжок и действие">
+                <span class="touch-action-icon">⚡</span><span class="touch-action-label">Действие</span>
+              </button>
+            </div>
             <div class="hint-bar">
               <span id="hintText">💡 Подсказка: выбери инструмент слева и кликай по полю.</span>
               <button class="btn btn-small btn-ghost" id="btnSpeakHint">🔊 Рассказать правила</button>
@@ -130,6 +141,6 @@
   <div id="toast" role="status" aria-live="polite"></div>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

@@ -343,6 +343,37 @@ input[type="color"] { width: 44px; height: 40px; padding: 2px; border: 2px solid
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .hint-bar .btn { flex: none; }
+
+/* ---------- Кнопки управления на сенсорном экране ---------- */
+.touch-controls {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 12px; padding: 12px 14px; user-select: none; -webkit-user-select: none;
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+}
+.touch-pad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 52px); gap: 6px; }
+.touch-up { grid-column: 2; grid-row: 1; }
+.touch-left { grid-column: 1; grid-row: 2; }
+.touch-down { grid-column: 2; grid-row: 2; }
+.touch-right { grid-column: 3; grid-row: 2; }
+.touch-btn {
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+  border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 14px;
+  background: linear-gradient(180deg, #f4f1ff, #e6e0ff);
+  color: var(--violet-dark); font-size: 21px; font-weight: 900; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: transform .08s, filter .08s;
+}
+.touch-btn.hold { transform: translateY(2px); border-bottom-width: 1px; filter: brightness(1.07); }
+.touch-action {
+  width: 88px; height: 88px; border-radius: 50%; flex-direction: column; gap: 1px;
+  background: linear-gradient(180deg, #ffd166, #ff9f43); color: #4a2b00; border-color: #d97b1f;
+}
+.touch-action-icon { font-size: 30px; line-height: 1; }
+.touch-action-label { font-size: 10px; font-weight: 900; }
+@media (max-width: 560px) {
+  .touch-controls { padding: 10px 8px; gap: 8px; }
+  .touch-pad { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 46px); gap: 5px; }
+  .touch-action { width: 78px; height: 78px; }
+}
 .chip.listening { background: #e5f8e9; color: #217a4b; }
 .published-card { border-left: 5px solid var(--orange); }
 
@@ -409,6 +440,21 @@ input[type="color"] { width: 44px; height: 40px; padding: 2px; border: 2px solid
   .panel { max-height: none; }
   .top-actions { width: 100%; }
   .top-actions .btn { flex: 1; }
+  /* В игре на телефоне скрываем редактор, чтобы поле и кнопки были видны вместе */
+  .editor-grid.playing > .tools-panel,
+  .editor-grid.playing > .props-panel,
+  .editor-grid.playing .hint-bar { display: none; }
+  .touch-controls { position: sticky; bottom: 8px; z-index: 20; }
+  /* Во время игры убираем лишние панели, чтобы поле помещалось на экране */
+  body.playing-mode .top-actions,
+  body.playing-mode .editor-topbar .save-status,
+  body.playing-mode .editor-topbar .badge,
+  body.playing-mode .canvas-chips { display: none; }
+  body.playing-mode .topbar { padding: 8px 14px; }
+  body.playing-mode .brand-logo { width: 38px; height: 38px; font-size: 20px; }
+  body.playing-mode .editor-topbar { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }
+  body.playing-mode .editor-topbar .project-title { display: none; }
+  body.playing-mode .canvas-head { padding: 8px 12px; }
 }
 @media (max-width: 560px) {
   .brand-text p { display: none; }
