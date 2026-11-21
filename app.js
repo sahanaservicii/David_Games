@@ -20,6 +20,14 @@ const DIFF = {
   normal: { speed: 1.0,  traffic: 1.0, time: 60, label: 'Средняя' },
   hard:   { speed: 1.28, traffic: 1.4, time: 40, label: 'Трудная' }
 };
+/* Новые жанры: по 3 игры в каждом */
+const SHOOTER_IDS = ['starraid', 'tank', 'range'];
+const ARCADE_IDS  = ['whack', 'runner', 'reaction'];
+const STRATEGY_IDS = ['defense', 'farm', 'duel'];
+const ACTION_IDS  = ['brawl', 'zombie', 'rescue'];
+const GENRE_IDS = SHOOTER_IDS.concat(ARCADE_IDS, STRATEGY_IDS, ACTION_IDS);
+/* В этих играх управляют кликом по полю — экранные кнопки только мешают */
+const TOUCHLESS_IDS = ['range', 'whack', 'reaction', 'defense', 'farm', 'duel'];
 
 const state = {
   screen: 'gallery',
@@ -119,7 +127,9 @@ function isTouchDevice() {
 }
 function updateTouchControls() {
   const el = $('#touchControls');
-  if (el) el.classList.toggle('hidden', !(state.mode === 'play' && isTouchDevice()));
+  const p = state.project;
+  const need = state.mode === 'play' && isTouchDevice() && !(p && TOUCHLESS_IDS.includes(p.template));
+  if (el) el.classList.toggle('hidden', !need);
 }
 function setVirtualKey(code, down) {
   if (down && !keys[code]) pressed[code] = true;
@@ -148,7 +158,10 @@ function isFullscreen() {
 }
 function syncFullscreenUI() {
   const stage = $('#gameStage');
-  if (stage && document.fullscreenElement === stage) stage.classList.remove('fake-fullscreen');
+  if (stage && document.fullscreenElement === stage) {
+    stage.classList.remove('fake-fullscreen');
+    delete stage.dataset.fsToken;
+  }
   const active = isFullscreen();
   document.body.classList.toggle('fullscreen-mode', active);
   const btn = $('#btnFullscreen');
@@ -177,20 +190,23 @@ function toggleFullscreen() {
     stage.classList.add('fake-fullscreen');
     syncFullscreenUI();
   };
-  // Если браузер не включил настоящий полный экран, используем режим «на весь окно»
+  // Некоторые мобильные браузеры «успешно» отвечают, но режим не включается —
+  // в этом случае через секунду всё равно разворачиваем поле на весь окно.
   setTimeout(() => {
     if (stage.dataset.fsToken !== token) return;
-    if (!document.fullscreenElement) fallback();
+    if (document.fullscreenElement !== stage) fallback();
+    else { delete stage.dataset.fsToken; syncFullscreenUI(); }
   }, 1200);
+  const done = () => {
+    if (stage.dataset.fsToken !== token) return;
+    if (document.fullscreenElement === stage) { delete stage.dataset.fsToken; syncFullscreenUI(); }
+    else fallback();
+  };
   if (stage.requestFullscreen) {
     try {
       const result = stage.requestFullscreen();
-      if (result && typeof result.then === 'function') {
-        result.then(() => { delete stage.dataset.fsToken; syncFullscreenUI(); }).catch(fallback);
-      } else {
-        delete stage.dataset.fsToken;
-        syncFullscreenUI();
-      }
+      if (result && typeof result.then === 'function') result.then(done).catch(fallback);
+      else done();
     } catch (err) { fallback(); }
   } else {
     fallback();
@@ -366,6 +382,98 @@ const TEMPLATES = {
     canvasTitle: 'Настройка примеров',
     canvasSubtitle: 'Выбери действия, число примеров и время на ответ',
     hint: '💡 Решай пример и кликай правильный ответ. За правильный — 10 очков, за ошибку — минус жизнь.'
+  },
+
+  /* ---------- ШУТЕРЫ ---------- */
+  starraid: {
+    id: 'starraid', title: 'Звёздный рейд', emoji: '🚀', color: '#e3e8ff',
+    tag: 'Шутер', desc: 'Лети сквозь звёздное поле и сбивай вражеские корабли. Двигайся стрелками и стреляй пробелом!',
+    features: ['Стрельба', 'Волги врагов', 'Счёт и жизни'],
+    canvasTitle: 'Настройка рейда', canvasSubtitle: 'Выбери скорость, жизни и сколько врагов нужно сбить',
+    hint: '💡 ← → или A D — руль, Пробел — стрельба. Сбивай 👾 и не дай им долететь до низа.'
+  },
+  tank: {
+    id: 'tank', title: 'Танковый бой', emoji: '🛡️', color: '#e6f3df',
+    tag: 'Шутер', desc: 'Веди танк по полю и стреляй во врагов. Танк поворачивается туда, куда ты едешь!',
+    features: ['Вид сверху', 'Стрельба в сторону движения', 'Враги со всех сторон'],
+    canvasTitle: 'Настройка боя', canvasSubtitle: 'Настрой скорость танка, жизни и цель по очкам',
+    hint: '💡 Стрелки или WASD — езда, Пробел — выстрел. Разбей вражеские танки 👾.'
+  },
+  range: {
+    id: 'range', title: 'Меткий тир', emoji: '🎯', color: '#fff0df',
+    tag: 'Шутер', desc: 'Попадай по появляющимся мишеням как можно точнее. Тренируй глазомер и реакцию!',
+    features: ['Прицельная стрельба', 'Таймер', 'Рекорд очков'],
+    canvasTitle: 'Настройка тира', canvasSubtitle: 'Выбери сколько мишеней поразить и время на стрельбу',
+    hint: '💡 Кликай или нажимай пальцем по мишени 🎯. Промах отнимает очко.'
+  },
+
+  /* ---------- АРКАДА ---------- */
+  whack: {
+    id: 'whack', title: 'Бей кротов', emoji: '🔨', color: '#f2e8ff',
+    tag: 'Аркада', desc: 'Кроты выглядывают из норок — успей ударить молотком, пока они не спрятались!',
+    features: ['Быстрая реакция', '9 норок', 'Весёлые кроты'],
+    canvasTitle: 'Настройка кротов', canvasSubtitle: 'Настрой скорость кротов, время и сколько нужно поймать',
+    hint: '💡 Кликай по кроту 🐹, когда он вылезет. Не пропускай слишком много!'
+  },
+  runner: {
+    id: 'runner', title: 'Бегун', emoji: '🏃', color: '#e4f7ef',
+    tag: 'Аркада', desc: 'Герой бежит сам — прыгай через препятствия и собирай монетки. Сколько сможешь пробежать?',
+    features: ['Бесконечный бег', 'Прыжки', 'Монеты и очки'],
+    canvasTitle: 'Настройка бега', canvasSubtitle: 'Выбери скорость, жизни и дистанцию до победы',
+    hint: '💡 Пробел, ↑ или W — прыжок. Перепрыгивай 📦 и собирай 🪙.'
+  },
+  reaction: {
+    id: 'reaction', title: 'Быстрая реакция', emoji: '⚡', color: '#fff6d8',
+    tag: 'Аркада', desc: 'Нажимай на кнопку, как только она загорится! Проверь, насколько быстро ты реагируешь.',
+    features: ['Скорость реакции', 'Случайные места', 'Рекорд'],
+    canvasTitle: 'Настройка реакции', canvasSubtitle: 'Настрой цель по очкам и сколько попыток даётся',
+    hint: '💡 Жди зелёную кнопку «ЖМИ!» и нажимай её пальцем или мышью.'
+  },
+
+  /* ---------- СТРАТЕГИИ ---------- */
+  defense: {
+    id: 'defense', title: 'Защита замка', emoji: '🏰', color: '#e8ecff',
+    tag: 'Стратегия', desc: 'Строй башни на траве и не подпускай врагов к замку. Продумай, где поставить защиту!',
+    features: ['Постройка башен', 'Волги врагов', 'Ограниченный бюджет'],
+    canvasTitle: 'Настройка защиты', canvasSubtitle: 'Настрой жизни замка, бюджет и сколько врагов отразить',
+    hint: '💡 Кликай по траве, чтобы построить башню за 10 монет. Башни сами стреляют по врагам.'
+  },
+  farm: {
+    id: 'farm', title: 'Умная ферма', emoji: '🌾', color: '#eaf7df',
+    tag: 'Стратегия', desc: 'Сажай семена, поливай грядки и собирай урожай. Управляй водой и зарабатывай монеты!',
+    features: ['Грядки', 'Полив и урожай', 'Таймер'],
+    canvasTitle: 'Настройка фермы', canvasSubtitle: 'Выбери время, цель по урожаю и сколько воды даётся',
+    hint: '💡 Клик по пустой грядке — посадить, по спелой — собрать урожай. Вода постепенно восстанавливается.'
+  },
+  duel: {
+    id: 'duel', title: 'Поединок героев', emoji: '⚔️', color: '#ffe9e6',
+    tag: 'Стратегия', desc: 'Пошаговый бой: выбирай атаку, защиту или лечение и думай, что сделает соперник!',
+    features: ['Пошаговый бой', 'Атака / защита / лечение', 'Полоса здоровья'],
+    canvasTitle: 'Настройка поединка', canvasSubtitle: 'Настрой прочность героя, урон и количество раундов',
+    hint: '💡 Нажимай кнопки внизу поля: «Атака», «Защита» или «Лечение». Победи соперника!'
+  },
+
+  /* ---------- ЭКШЕН ---------- */
+  brawl: {
+    id: 'brawl', title: 'Кулачный бой', emoji: '🥊', color: '#ffece0',
+    tag: 'Экшен', desc: 'Настоящий бой на ринге! Ударяй соперника, блокируй его удары и побеждай.',
+    features: ['Движение и удары', 'Блок', 'Таймер боя'],
+    canvasTitle: 'Настройка боя', canvasSubtitle: 'Настрой скорость, прочность и время раунда',
+    hint: '💡 ← → — движение, Пробел — удар, ↓ — блок. Сбей сопернику все очки здоровья!'
+  },
+  zombie: {
+    id: 'zombie', title: 'Оборона от зомби', emoji: '🧟', color: '#e2efe4',
+    tag: 'Экшен', desc: 'Зомби идут со всех сторон! Бегай по кладбищу и стреляй, пока не кончатся жизни.',
+    features: ['Оборона', 'Стрельба вверх', 'Нарастающая волна'],
+    canvasTitle: 'Настройка обороны', canvasSubtitle: 'Настрой скорость, жизни и сколько зомби нужно победить',
+    hint: '💡 ← → — движение, Пробел — стрельба. Не подпускай зомби к себе!'
+  },
+  rescue: {
+    id: 'rescue', title: 'Спаси друзей', emoji: '🕊️', color: '#e7f5ff',
+    tag: 'Экшен', desc: 'Бегай по парку, спасай друзей и обходи опасности. Спаси всех — и ты герой!',
+    features: ['Спасение', 'Опасности', 'Счёт и жизни'],
+    canvasTitle: 'Настройка спасения', canvasSubtitle: 'Настрой скорость, жизни и сколько друзей нужно спасти',
+    hint: '💡 Стрелки или WASD — бег. Собирай 🧒, избегай 🔥.'
   }
 };
 
@@ -429,6 +537,66 @@ const TIPS = {
     'Сначала считай в уме, потом выбирай ответ — так быстрее.',
     'На трудной сложности примеры сложнее, но и очков больше.',
     'Ошибка отнимает жизнь, поэтому не торопись без нужды.'
+  ],
+  starraid: [
+    'Держи корабль ближе к центру — так быстрее доберёшься до всех врагов.',
+    'Стреляй длинной очередью, но не забывай уворачиваться.',
+    'Каждый сбитый враг даёт 10 очков — набери свою цель!'
+  ],
+  tank: [
+    'Танк стреляет в ту сторону, куда ты едешь.',
+    'Не стой на месте — враги приходят со всех сторон.',
+    'Защита полезнее скорости, если врагов много.'
+  ],
+  range: [
+    'Целься в центр мишени — так попасть легче.',
+    'Промах отнимает очко, поэтому не трать клики зря.',
+    'Короткое время делает игру сложнее — попробуй и его!'
+  ],
+  whack: [
+    'Смотри сразу на все норки — крот появляется в случайной.',
+    'Не бей по пустой норке: это считается промахом.',
+    'Лёгкая сложность даёт больше времени на удар.'
+  ],
+  runner: [
+    'Прыгай заранее, а не в самый последний момент.',
+    'Монетки дают очки, но ради них можно и споткнуться.',
+    'Чем больше дистанция, тем дольше бег — тренируйся!'
+  ],
+  reaction: [
+    'Не нажимай раньше времени — это считается ошибкой.',
+    'Смотри на всю площадь поля: кнопка появляется в разных местах.',
+    'Чем быстрее нажатие, тем больше очков.'
+  ],
+  defense: [
+    'Ставь башни рядом с дорогой — так они дольше стреляют по врагам.',
+    'Не строй башни на самой дороге.',
+    'Накапливай монеты: позже можно поставить больше башен.'
+  ],
+  farm: [
+    'Поливай грядки сразу после посадки.',
+    'Спелый урожай не ждёт — собирай его вовремя.',
+    'Вода восстанавливается сама, просто подожди немного.'
+  ],
+  duel: [
+    'Если соперник часто атакует — ставь защиту.',
+    'Лечение помогает, когда здоровья осталось мало.',
+    'Атака — самый верный способ победить, но не забывай о защите.'
+  ],
+  brawl: [
+    'Блок помогает уменьшить урон от удара.',
+    'Подходи к сопернику вплотную перед ударом.',
+    'Не стой в углу — там удобно зажать тебя.'
+  ],
+  zombie: [
+    'Стреляй по ближайшим зомби — они опаснее всего.',
+    'Двигайся постоянно, чтобы зомби не окружили тебя.',
+    'На трудной сложности зомби появляются чаще.'
+  ],
+  rescue: [
+    'Сначала спасай друзей, которые ближе к опасности.',
+    'Огонь отнимает жизнь — обходи его сторонкой.',
+    'Спасённый друг даёт много очков!'
   ]
 };
 
@@ -564,6 +732,9 @@ function createProject(templateId) {
     math:      { ops: ['+', '-'], count: 8, seconds: 12 }
   };
   if (extras[templateId]) Object.assign(p.settings, extras[templateId]);
+  if (GENRE_IDS.includes(templateId)) {
+    Object.assign(p.settings, { speed: 1, lives: 3, count: 10, seconds: 60, target: 10, hero: '🚀' });
+  }
   if (templateId === 'platformer') p.level = defaultPlatformerLevel();
   if (templateId === 'collector') p.level = defaultCollectorLevel();
   if (templateId === 'quiz') p.questions = defaultQuestions();
@@ -1973,6 +2144,711 @@ class MathEngine extends ArcadeEngine {
   }
 }
 
+/* =========================================================
+   НОВЫЕ ЖАНРЫ: шутеры, аркада, стратегии, экшен
+   ========================================================= */
+class GenreEngine extends ArcadeEngine {
+  get dm() { return DIFF[this.p.settings.difficulty] || DIFF.normal; }
+  get spd() { return (this.p.settings.speed || 1) * this.dm.speed; }
+  get goal() { return Math.max(3, Math.round((this.p.settings.count || 10) * this.dm.traffic)); }
+  get limit() { return Math.round((this.p.settings.seconds || 60) * this.dm.time / 60); }
+  pill(icon, value) { return `<span class="hud-pill">${icon} ${value}</span>`; }
+  heartHud() { return this.pill('♥', '♥'.repeat(Math.max(0, this.lives))); }
+  scoreHud() { return this.pill('⭐', this.score || 0); }
+  goalHud(icon) { return this.pill(icon, (this.hits || 0) + '/' + this.goal); }
+  timeHud() { return this.pill('⏱', Math.max(0, Math.ceil(this.time)) + ' с'); }
+  edit(ctx, emoji, title, sub) { if (state.mode === 'edit') drawEditCard(ctx, emoji, title, sub); }
+  bar(ctx, x, y, w, h, ratio, color) {
+    ctx.fillStyle = 'rgba(255,255,255,.2)'; roundRect(ctx, x, y, w, h, h / 2); ctx.fill();
+    ctx.fillStyle = color; roundRect(ctx, x, y, w * clamp(ratio, 0, 1), h, h / 2); ctx.fill();
+  }
+  stars(ctx, n) {
+    ctx.save(); ctx.fillStyle = '#fff';
+    for (let i = 0; i < (n || 45); i++) {
+      ctx.globalAlpha = .2 + (i % 5) / 9;
+      ctx.fillRect((i * 137.5) % W, (i * 79.3) % H, 2, 2);
+    }
+    ctx.restore();
+  }
+  button(ctx, r, label, color) {
+    ctx.fillStyle = color || this.p.settings.accent;
+    roundRect(ctx, r.x, r.y, r.w, r.h, 14); ctx.fill();
+    ctx.fillStyle = '#232246';
+    ctx.font = 'bold 16px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+  }
+}
+
+/* ---------- Шутер 1: Звёздный рейд ---------- */
+class StarRaidEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0;
+    this.time = this.limit; this.finished = false;
+    this.ship = { x: W / 2, y: H - 60 };
+    this.bullets = []; this.foes = []; this.spawn = .5; this.fire = 0;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const s = this.ship;
+    if (keys.ArrowLeft || keys.KeyA) s.x -= 260 * dt;
+    if (keys.ArrowRight || keys.KeyD) s.x += 260 * dt;
+    if (keys.ArrowUp || keys.KeyW) s.y -= 200 * dt;
+    if (keys.ArrowDown || keys.KeyS) s.y += 200 * dt;
+    s.x = clamp(s.x, 26, W - 26); s.y = clamp(s.y, 120, H - 30);
+    this.fire -= dt;
+    if ((pressed.Space || keys.Space) && this.fire <= 0) {
+      this.bullets.push({ x: s.x, y: s.y - 22 }); this.fire = .16; beep(880, .04);
+    }
+    for (const b of this.bullets) b.y -= 520 * dt;
+    this.bullets = this.bullets.filter(b => b.y > -10);
+    this.spawn -= dt;
+    if (this.spawn <= 0) {
+      this.foes.push({ x: rand(40, W - 40), y: -24, phase: rand(0, 6) });
+      this.spawn = rand(.7, 1.3) / this.dm.traffic;
+    }
+    for (const f of this.foes) {
+      f.y += 70 * this.spd * dt; f.phase += dt * 2;
+      f.x = clamp(f.x + Math.sin(f.phase) * 18 * dt, 24, W - 24);
+      for (const b of this.bullets) {
+        if (!b.dead && !f.dead && Math.hypot(b.x - f.x, b.y - f.y) < 24) {
+          b.dead = true; f.dead = true; this.hits++; this.score += 10; beep(520, .07); break;
+        }
+      }
+      if (!f.dead && f.y > H + 20) { f.dead = true; this.lives--; beep(180, .18); }
+    }
+    this.foes = this.foes.filter(f => !f.dead);
+    this.bullets = this.bullets.filter(b => !b.dead);
+    this.time -= dt;
+    if (this.hits >= this.goal) this.finish(true, 'Все враги сбиты!');
+    else if (this.lives <= 0) this.finish(false, 'Корабль повреждён');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H); this.stars(ctx);
+    for (const f of this.foes) drawEmoji(ctx, '👾', f.x, f.y, 34);
+    ctx.fillStyle = this.p.settings.accent;
+    for (const b of this.bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, 7); ctx.fill(); }
+    drawEmoji(ctx, this.p.settings.hero || '🚀', this.ship.x, this.ship.y, 46);
+    this.edit(ctx, '🚀', 'Звёздный рейд', `Сбей ${this.goal} врагов за ${this.limit} секунд.`);
+  }
+  getHud() { return this.goalHud('👾') + this.scoreHud() + this.heartHud() + this.timeHud(); }
+}
+
+/* ---------- Шутер 2: Танковый бой ---------- */
+class TankEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0;
+    this.time = this.limit; this.finished = false;
+    this.tank = { x: W / 2, y: H / 2, a: 0 };
+    this.bullets = []; this.foes = []; this.spawn = 1; this.fire = 0;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const t = this.tank, s = 210 * this.spd;
+    let dx = 0, dy = 0;
+    if (keys.ArrowLeft || keys.KeyA) dx--;
+    if (keys.ArrowRight || keys.KeyD) dx++;
+    if (keys.ArrowUp || keys.KeyW) dy--;
+    if (keys.ArrowDown || keys.KeyS) dy++;
+    if (dx || dy) {
+      const l = Math.hypot(dx, dy); dx /= l; dy /= l;
+      t.a = Math.atan2(dy, dx); t.x += dx * s * dt; t.y += dy * s * dt;
+    }
+    t.x = clamp(t.x, 26, W - 26); t.y = clamp(t.y, 50, H - 30);
+    this.fire -= dt;
+    if ((pressed.Space || keys.Space) && this.fire <= 0) {
+      this.bullets.push({ x: t.x + Math.cos(t.a) * 28, y: t.y + Math.sin(t.a) * 28,
+        vx: Math.cos(t.a) * 430, vy: Math.sin(t.a) * 430, life: 1.6 });
+      this.fire = .28; beep(700, .05);
+    }
+    for (const b of this.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; }
+    this.bullets = this.bullets.filter(b => b.life > 0 && b.x > 0 && b.x < W && b.y > 0 && b.y < H);
+    this.spawn -= dt;
+    if (this.spawn <= 0) {
+      const side = Math.floor(rand(0, 4));
+      this.foes.push(side === 0 ? { x: rand(30, W - 30), y: 20 } :
+        side === 1 ? { x: rand(30, W - 30), y: H - 20 } :
+        side === 2 ? { x: 20, y: rand(50, H - 30) } : { x: W - 20, y: rand(50, H - 30) });
+      this.spawn = rand(1.1, 2) / this.dm.traffic;
+    }
+    for (const f of this.foes) {
+      const a = Math.atan2(t.y - f.y, t.x - f.x);
+      f.x += Math.cos(a) * 55 * this.spd * dt; f.y += Math.sin(a) * 55 * this.spd * dt;
+      if (Math.hypot(f.x - t.x, f.y - t.y) < 28) { f.dead = true; this.lives--; beep(170, .18); }
+      for (const b of this.bullets) {
+        if (!b.dead && !f.dead && Math.hypot(b.x - f.x, b.y - f.y) < 24) {
+          b.dead = true; f.dead = true; this.hits++; this.score += 10; beep(500, .07); break;
+        }
+      }
+    }
+    this.foes = this.foes.filter(f => !f.dead);
+    this.bullets = this.bullets.filter(b => !b.dead);
+    this.time -= dt;
+    if (this.hits >= this.goal) this.finish(true, 'Враги разбиты!');
+    else if (this.lives <= 0) this.finish(false, 'Танк уничтожен');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (const f of this.foes) drawEmoji(ctx, '👾', f.x, f.y, 34);
+    ctx.fillStyle = this.p.settings.accent;
+    for (const b of this.bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, 7); ctx.fill(); }
+    const t = this.tank;
+    ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.a);
+    ctx.fillStyle = '#8fd694'; roundRect(ctx, -18, -14, 36, 28, 8); ctx.fill();
+    ctx.fillStyle = this.p.settings.accent; ctx.fillRect(2, -4, 30, 8);
+    ctx.restore();
+    this.edit(ctx, '🛡️', 'Танковый бой', `Разбей ${this.goal} вражеских танков.`);
+  }
+  getHud() { return this.goalHud('👾') + this.scoreHud() + this.heartHud() + this.timeHud(); }
+}
+
+/* ---------- Шутер 3: Меткий тир ---------- */
+class RangeEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.hits = 0; this.misses = 0; this.time = this.limit;
+    this.finished = false; this.targets = []; this.spawn = .2;
+  }
+  update(dt) {
+    if (this.finished) return;
+    this.time -= dt; this.spawn -= dt;
+    if (this.spawn <= 0 && this.targets.length < 3) {
+      this.targets.push({ x: rand(70, W - 70), y: rand(70, H - 70), r: rand(24, 34),
+        life: rand(1.1, 1.9) / this.dm.speed });
+      this.spawn = rand(.35, .7) / this.dm.traffic;
+    }
+    let expired = 0;
+    for (const t of this.targets) { t.life -= dt; if (t.life <= 0) expired++; }
+    if (expired) {
+      this.targets = this.targets.filter(t => t.life > 0);
+      this.misses += expired; this.score = Math.max(0, this.score - 2 * expired);
+    }
+    if (this.hits >= this.goal) this.finish(true, 'Отличная стрельба!');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  onClick(x, y) {
+    if (this.finished || state.mode !== 'play') return;
+    const i = this.targets.findIndex(t => Math.hypot(t.x - x, t.y - y) <= t.r + 8);
+    if (i >= 0) {
+      const t = this.targets[i]; this.targets.splice(i, 1);
+      this.hits++; this.score += 10 + Math.round(t.life); beep(900, .06);
+    } else { this.misses++; this.score = Math.max(0, this.score - 2); beep(200, .08); }
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,.08)';
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (const t of this.targets) {
+      ctx.save(); ctx.globalAlpha = clamp(t.life, 0, 1);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ff6b81'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r * .68, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r * .34, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+    this.edit(ctx, '🎯', 'Меткий тир', `Попади ${this.goal} раз за ${this.limit} секунд.`);
+  }
+  getHud() { return this.goalHud('🎯') + this.scoreHud() + this.pill('❌', this.misses) + this.timeHud(); }
+}
+
+/* ---------- Аркада 1: Бей кротов ---------- */
+class WhackEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0; this.misses = 0;
+    this.time = this.limit; this.finished = false;
+    this.holes = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+      this.holes.push({ x: W / 2 + (c - 1) * 170, y: 150 + r * 105 });
+    this.active = -1; this.ttl = 0; this.wait = .4;
+  }
+  spawn() {
+    this.active = Math.floor(rand(0, this.holes.length));
+    this.ttl = rand(1.1, 1.8) / this.dm.speed;
+  }
+  update(dt) {
+    if (this.finished) return;
+    this.time -= dt;
+    if (this.active < 0) {
+      this.wait -= dt; if (this.wait <= 0) this.spawn();
+    } else {
+      this.ttl -= dt;
+      if (this.ttl <= 0) { this.active = -1; this.wait = rand(.25, .6); this.misses++; this.lives--; }
+    }
+    if (this.hits >= this.goal) this.finish(true, 'Все кроты пойманы!');
+    else if (this.lives <= 0) this.finish(false, 'Слишком много промахов');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  onClick(x, y) {
+    if (this.finished || state.mode !== 'play') return;
+    if (this.active >= 0) {
+      const h = this.holes[this.active];
+      if (Math.abs(x - h.x) < 70 && Math.abs(y - h.y + 8) < 42) {
+        this.hits++; this.score += 10; this.active = -1; this.wait = rand(.2, .5);
+        beep(760, .07); return;
+      }
+    }
+    this.misses++; this.lives--; beep(180, .1);
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(90,200,120,.14)'; ctx.fillRect(0, 60, W, H - 60);
+    for (const h of this.holes) {
+      ctx.fillStyle = '#3a2b22'; ctx.beginPath(); ctx.ellipse(h.x, h.y, 68, 38, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 3; ctx.stroke();
+    }
+    if (this.active >= 0) {
+      const h = this.holes[this.active], rise = clamp(this.ttl * 3, 0, 1);
+      drawEmoji(ctx, '🐹', h.x, h.y + 12 - rise * 30, 52);
+    }
+    this.edit(ctx, '🔨', 'Бей кротов', `Поймай ${this.goal} кротов. Промахи отнимают жизнь.`);
+  }
+  getHud() { return this.goalHud('🐹') + this.scoreHud() + this.heartHud() + this.timeHud(); }
+}
+
+/* ---------- Аркада 2: Бегун ---------- */
+class RunnerEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.dist = 0; this.finished = false;
+    this.goalMeters = Math.max(40, (this.p.settings.count || 10) * 10);
+    this.hero = { x: 150, y: H - 100, vy: 0 }; this.onGround = true;
+    this.things = []; this.spawn = 1;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const s = this.spd;
+    if ((pressed.Space || pressed.ArrowUp || pressed.KeyW) && this.onGround) {
+      this.hero.vy = -520; this.onGround = false; beep(620, .07);
+    }
+    this.hero.vy += 1500 * dt; this.hero.y += this.hero.vy * dt;
+    const floor = H - 72;
+    if (this.hero.y > floor) { this.hero.y = floor; this.hero.vy = 0; this.onGround = true; }
+    const speed = 230 * s;
+    this.dist += speed * dt / 10;
+    this.spawn -= dt;
+    if (this.spawn <= 0) {
+      const coin = Math.random() < .45;
+      this.things.push({ x: W + 30, y: coin ? floor - 95 : floor - 26, coin });
+      this.spawn = rand(.8, 1.5) / this.dm.traffic;
+    }
+    const heroBox = { x: this.hero.x - 18, y: this.hero.y - 28, w: 36, h: 56 };
+    for (const o of this.things) {
+      o.x -= speed * dt;
+      if (!o.dead && aabb(heroBox, { x: o.x - 18, y: o.y - 18, w: 36, h: 36 })) {
+        o.dead = true;
+        if (o.coin) { this.score += 10; beep(1000, .05); }
+        else { this.lives--; beep(160, .14); }
+      }
+    }
+    this.things = this.things.filter(o => !o.dead && o.x > -40);
+    if (this.dist >= this.goalMeters) this.finish(true, 'Дистанция пройдена!');
+    else if (this.lives <= 0) this.finish(false, 'Герой устал');
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath(); ctx.arc((i * 220 - this.dist * 3) % (W + 300) - 100, H - 60, 90, Math.PI, 0); ctx.fill();
+    }
+    ctx.fillStyle = '#3f8f57'; ctx.fillRect(0, H - 72, W, 72);
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(0, H - 72, W, 4);
+    for (const o of this.things) drawEmoji(ctx, o.coin ? '🪙' : '📦', o.x, o.y, 40);
+    drawEmoji(ctx, this.p.settings.hero || '🏃', this.hero.x, this.hero.y, 50);
+    this.edit(ctx, '🏃', 'Бегун', `Пробеги ${this.goalMeters} м, прыгая через коробки.`);
+  }
+  getHud() { return this.pill('🏁', Math.floor(this.dist) + '/' + this.goalMeters) + this.scoreHud() + this.heartHud(); }
+}
+
+/* ---------- Аркада 3: Быстрая реакция ---------- */
+class ReactionEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.tries = this.p.settings.count || 10; this.finished = false;
+    this.phase = 'wait'; this.timer = rand(.8, 1.8);
+    this.rect = { x: W / 2 - 90, y: H / 2 - 50, w: 180, h: 100 }; this.last = 0;
+  }
+  newRound() {
+    if (this.tries <= 0) { this.finish(this.score >= this.goal, 'Попытки закончились'); return; }
+    this.phase = 'wait'; this.timer = rand(.9, 2.2);
+    this.rect = { x: rand(90, W - 270), y: rand(100, H - 190), w: 180, h: 100 };
+  }
+  update(dt) {
+    if (this.finished) return;
+    this.timer -= dt;
+    if (this.phase === 'wait' && this.timer <= 0) {
+      this.phase = 'go'; this.timer = 1.6; this.last = performance.now(); beep(880, .08);
+    } else if (this.phase === 'go' && this.timer <= 0) {
+      this.tries--; this.newRound();
+    }
+  }
+  onClick(x, y) {
+    if (this.finished || state.mode !== 'play') return;
+    const r = this.rect;
+    const inside = x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
+    if (this.phase === 'go' && inside) {
+      const ms = Math.round(performance.now() - this.last);
+      this.score += Math.max(1, Math.round(20 - ms / 60));
+      beep(1050, .06); this.tries--; this.newRound();
+    } else {
+      this.score = Math.max(0, this.score - 3); this.tries--; beep(190, .12); this.newRound();
+    }
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.textAlign = 'center';
+    ctx.font = 'bold 22px "Trebuchet MS", sans-serif';
+    ctx.fillText(this.phase === 'go' ? 'ЖМИ СКОРЕЕ!' : 'Жди зелёную кнопку…', W / 2, 62);
+    this.button(ctx, this.rect, this.phase === 'go' ? 'ЖМИ!' : '…',
+      this.phase === 'go' ? '#38c172' : 'rgba(255,255,255,.18)');
+    ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = '14px "Trebuchet MS", sans-serif';
+    ctx.fillText(`Осталось попыток: ${this.tries}`, W / 2, H - 24);
+    this.edit(ctx, '⚡', 'Быстрая реакция', `Набери ${this.goal} очков за ${this.tries} попыток.`);
+  }
+  getHud() { return this.scoreHud() + this.pill('⚡', this.tries) + this.pill('🎯', this.goal); }
+}
+
+/* ---------- Стратегия 1: Защита замка ---------- */
+class DefenseEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0; this.finished = false;
+    this.time = this.limit; this.gold = 30; this.spots = [];
+    for (let i = 0; i < 4; i++) {
+      this.spots.push({ x: 220 + i * 140, y: 120, cool: 0 });
+      this.spots.push({ x: 220 + i * 140, y: H - 120, cool: 0 });
+    }
+    this.foes = []; this.spawn = 1.2; this.goldTimer = 0;
+  }
+  update(dt) {
+    if (this.finished) return;
+    this.goldTimer += dt;
+    if (this.goldTimer >= 1) { this.goldTimer -= 1; this.gold += 2; }
+    this.spawn -= dt;
+    if (this.spawn <= 0) {
+      this.foes.push({ x: W + 20, y: H / 2 + rand(-28, 28), hp: 2 + Math.floor(this.hits / 6) });
+      this.spawn = rand(1.4, 2.4) / this.dm.traffic;
+    }
+    for (const f of this.foes) {
+      f.x -= 34 * this.spd * dt;
+      if (f.x < 58) { f.dead = true; this.lives--; beep(160, .16); }
+    }
+    for (const t of this.spots) {
+      if (!t.tower) continue;
+      t.cool -= dt;
+      if (t.cool <= 0) {
+        const target = this.foes.filter(f => !f.dead && Math.abs(f.x - t.x) < 170)
+          .sort((a, b) => a.x - b.x)[0];
+        if (target) {
+          target.hp--; t.cool = .5; beep(700, .03);
+          if (target.hp <= 0) { target.dead = true; this.hits++; this.score += 10; this.gold += 5; }
+        }
+      }
+    }
+    this.foes = this.foes.filter(f => !f.dead);
+    this.time -= dt;
+    if (this.hits >= this.goal) this.finish(true, 'Замок защищён!');
+    else if (this.lives <= 0) this.finish(false, 'Замок захвачен');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  onClick(x, y) {
+    if (this.finished || state.mode !== 'play') return;
+    const s = this.spots.find(s => !s.tower && Math.hypot(s.x - x, s.y - y) < 50);
+    if (s && this.gold >= 10) {
+      s.tower = true; s.cool = 0; this.gold -= 10; beep(560, .08);
+    } else showToast('Нужно 10 монет и свободное место', 'warn');
+  }
+  draw(ctx) {
+    ctx.fillStyle = '#4a8f57'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#6b5b4a'; ctx.fillRect(0, H / 2 - 45, W, 90);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, H / 2 - 45, W, 3);
+    for (const s of this.spots) {
+      drawEmoji(ctx, s.tower ? '🗼' : '🌱', s.x, s.y, s.tower ? 44 : 24);
+    }
+    for (const f of this.foes) drawEmoji(ctx, '👾', f.x, f.y, 38);
+    drawEmoji(ctx, '🏰', 48, H / 2, 74);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 16px "Trebuchet MS", sans-serif';
+    ctx.fillText('🪙 ' + this.gold, W / 2, 32);
+    this.edit(ctx, '🏰', 'Защита замка', `Отрази ${this.goal} врагов. Башня стоит 10 монет.`);
+  }
+  getHud() { return this.goalHud('👾') + this.heartHud() + this.pill('🪙', this.gold) + this.timeHud(); }
+}
+
+/* ---------- Стратегия 2: Умная ферма ---------- */
+class FarmEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.harvest = 0; this.finished = false; this.time = this.limit;
+    this.water = 5; this.waterTimer = 0; this.plots = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++)
+      this.plots.push({ x: W / 2 + (c - 1.5) * 130, y: 130 + r * 110, stage: 0, grow: 0 });
+  }
+  update(dt) {
+    if (this.finished) return;
+    this.waterTimer += dt;
+    if (this.waterTimer >= 2) { this.waterTimer -= 2; this.water = Math.min(8, this.water + 1); }
+    for (const p of this.plots) {
+      if (p.stage === 2) { p.grow -= dt; if (p.grow <= 0) p.stage = 3; }
+    }
+    this.time -= dt;
+    if (this.harvest >= this.goal) this.finish(true, 'Урожай собран!');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  onClick(x, y) {
+    if (this.finished || state.mode !== 'play') return;
+    const p = this.plots.find(p => Math.abs(p.x - x) < 60 && Math.abs(p.y - y) < 48);
+    if (!p) return;
+    if (p.stage === 0) { p.stage = 1; beep(420, .05); }
+    else if (p.stage === 1) {
+      if (this.water > 0) { this.water--; p.stage = 2; p.grow = rand(2.2, 3.4) / this.dm.speed; beep(680, .05); }
+      else showToast('Нет воды — подожди немного', 'warn');
+    } else if (p.stage === 3) { p.stage = 0; this.harvest++; this.score += 10; beep(920, .07); }
+  }
+  draw(ctx) {
+    ctx.fillStyle = '#79a85f'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(0,0,0,.08)';
+    for (let i = 0; i < 20; i++) ctx.fillRect((i * 97) % W, (i * 53) % H, 4, 4);
+    for (const p of this.plots) {
+      ctx.fillStyle = '#6b4a32'; roundRect(ctx, p.x - 58, p.y - 44, 116, 88, 10); ctx.fill();
+      ctx.strokeStyle = '#8b6447'; ctx.lineWidth = 3; ctx.stroke();
+      if (p.stage === 1) drawEmoji(ctx, '🌱', p.x, p.y, 42);
+      else if (p.stage === 2) drawEmoji(ctx, '🌿', p.x, p.y, 44);
+      else if (p.stage === 3) drawEmoji(ctx, '🌾', p.x, p.y, 48);
+    }
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 16px "Trebuchet MS", sans-serif';
+    ctx.fillText('💧 ' + this.water, W / 2, 32);
+    this.edit(ctx, '🌾', 'Умная ферма', `Собери ${this.goal} урожаев: посади, полей, собери.`);
+  }
+  getHud() { return this.goalHud('🌾') + this.scoreHud() + this.pill('💧', this.water) + this.timeHud(); }
+}
+
+/* ---------- Стратегия 3: Поединок героев ---------- */
+class DuelEngine extends GenreEngine {
+  reset() {
+    this.maxHp = Math.max(40, (this.p.settings.lives || 3) * 30);
+    this.hp = this.maxHp; this.enemyHp = this.maxHp; this.finished = false;
+    this.guard = false; this.enemyGuard = false; this.turns = 0;
+    this.msg = 'Выбирай действие!'; this.enemyTimer = 0;
+    this.btns = [
+      { x: W / 2 - 255, y: H - 72, w: 160, h: 48, label: '⚔️ Атака', k: 'attack' },
+      { x: W / 2 - 80, y: H - 72, w: 160, h: 48, label: '🛡️ Защита', k: 'defend' },
+      { x: W / 2 + 95, y: H - 72, w: 160, h: 48, label: '💚 Лечение', k: 'heal' }
+    ];
+  }
+  act(k) {
+    if (this.finished || state.mode !== 'play' || this.enemyTimer > 0) return;
+    const dmg = Math.round(12 * this.spd);
+    if (k === 'attack') {
+      this.enemyHp -= this.enemyGuard ? Math.round(dmg / 2) : dmg;
+      this.enemyGuard = false; this.msg = `Ты нанёс ${dmg} урона!`; beep(620, .07);
+    } else if (k === 'defend') { this.guard = true; this.msg = 'Ты готов к защите'; beep(420, .06); }
+    else if (k === 'heal') { this.hp = Math.min(this.maxHp, this.hp + 15); this.msg = 'Ты восстановил 15 HP'; beep(760, .09); }
+    this.enemyTimer = .7; this.turns++;
+  }
+  onClick(x, y) {
+    const b = this.btns.find(b => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h);
+    if (b) this.act(b.k);
+  }
+  update(dt) {
+    if (this.finished) return;
+    if (this.enemyTimer > 0) {
+      this.enemyTimer -= dt;
+      if (this.enemyTimer <= 0) {
+        const r = Math.random();
+        if (r < .62) {
+          const d = Math.round(12 * this.spd), real = this.guard ? Math.round(d / 2) : d;
+          this.hp -= real; this.msg = `Враг атакует! −${real} HP`; this.guard = false; beep(220, .1);
+        } else if (r < .85) { this.enemyGuard = true; this.msg = 'Враг защищается'; }
+        else { this.enemyHp = Math.min(this.maxHp, this.enemyHp + 10); this.msg = 'Враг лечится'; }
+        this.turns++;
+      }
+    }
+    if (this.enemyHp <= 0) this.finish(true, 'Победа в поединке!');
+    else if (this.hp <= 0) this.finish(false, 'Ты проиграл бой');
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(0, H - 110, W, 110);
+    drawEmoji(ctx, '🧑', 180, 190, 110); drawEmoji(ctx, '👹', W - 180, 190, 110);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
+    ctx.fillText('Ты', 180, 268); ctx.fillText('Соперник', W - 180, 268);
+    this.bar(ctx, 80, 290, 200, 14, this.hp / this.maxHp, '#38c172');
+    this.bar(ctx, W - 280, 290, 200, 14, this.enemyHp / this.maxHp, '#ff6b81');
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 18px "Trebuchet MS", sans-serif';
+    ctx.fillText(this.msg, W / 2, 340);
+    ctx.font = '14px "Trebuchet MS", sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillText(`Раунд ${this.turns}`, W / 2, 370);
+    for (const b of this.btns) this.button(ctx, b, b.label);
+    this.edit(ctx, '⚔️', 'Поединок героев', 'Атакуй, защищайся и лечись. Победи соперника!');
+  }
+  getHud() {
+    return this.pill('❤️', Math.max(0, this.hp)) + this.pill('👹', Math.max(0, this.enemyHp)) +
+      this.pill('🔄', this.turns);
+  }
+}
+
+/* ---------- Экшен 1: Кулачный бой ---------- */
+class BrawlEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.finished = false; this.time = this.limit;
+    this.maxHp = Math.max(40, (this.p.settings.lives || 3) * 30);
+    this.hp = this.maxHp; this.enemyHp = this.maxHp;
+    this.hero = { x: 230, y: H - 100 }; this.enemy = { x: W - 230, y: H - 100, hitCd: 0 };
+    this.face = 1; this.punchCd = 0; this.block = false;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const s = 190 * this.spd;
+    if (keys.ArrowLeft || keys.KeyA) { this.hero.x -= s * dt; this.face = -1; }
+    if (keys.ArrowRight || keys.KeyD) { this.hero.x += s * dt; this.face = 1; }
+    this.hero.x = clamp(this.hero.x, 60, W - 60);
+    this.block = !!(keys.ArrowDown || keys.KeyS);
+    this.punchCd -= dt;
+    if ((pressed.Space || keys.Space) && this.punchCd <= 0) {
+      this.punchCd = .45;
+      if (Math.abs(this.hero.x - this.enemy.x) < 90) {
+        this.enemyHp -= Math.round(14 * this.spd); this.score += 10;
+        this.enemy.x += this.face * 25; beep(680, .07);
+      } else beep(300, .03);
+    }
+    this.enemy.hitCd -= dt;
+    const dir = Math.sign(this.hero.x - this.enemy.x);
+    if (Math.abs(this.hero.x - this.enemy.x) > 62) this.enemy.x += dir * 70 * this.spd * dt;
+    else if (this.enemy.hitCd <= 0) { this.enemy.hitCd = 1.1; this.hp -= this.block ? 4 : 10; beep(190, .12); }
+    this.time -= dt;
+    if (this.enemyHp <= 0) this.finish(true, 'Победа на ринге!');
+    else if (this.hp <= 0) this.finish(false, 'Ты проиграл');
+    else if (this.time <= 0) this.finish(this.enemyHp < this.hp, 'Время боя вышло');
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#b86b3c'; roundRect(ctx, 40, H - 150, W - 80, 110, 16); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 3; ctx.stroke();
+    drawEmoji(ctx, '🥊', this.hero.x, this.hero.y, 64);
+    drawEmoji(ctx, '👹', this.enemy.x, this.enemy.y, 66);
+    if (this.block) drawEmoji(ctx, '🛡️', this.hero.x - this.face * 30, this.hero.y - 20, 30);
+    this.bar(ctx, 60, 40, 250, 16, this.hp / this.maxHp, '#38c172');
+    this.bar(ctx, W - 310, 40, 250, 16, this.enemyHp / this.maxHp, '#ff6b81');
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
+    ctx.fillText('Ты', 185, 70); ctx.fillText('Соперник', W - 185, 70);
+    this.edit(ctx, '🥊', 'Кулачный бой', `Победи соперника за ${this.limit} секунд. ↓ — блок.`);
+  }
+  getHud() { return this.scoreHud() + this.pill('❤️', Math.max(0, this.hp)) + this.timeHud(); }
+}
+
+/* ---------- Экшен 2: Оборона от зомби ---------- */
+class ZombieEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0;
+    this.time = this.limit; this.finished = false;
+    this.player = { x: W / 2, y: H - 60 };
+    this.bullets = []; this.foes = []; this.spawn = .8; this.fire = 0;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const p = this.player;
+    if (keys.ArrowLeft || keys.KeyA) p.x -= 230 * dt;
+    if (keys.ArrowRight || keys.KeyD) p.x += 230 * dt;
+    if (keys.ArrowUp || keys.KeyW) p.y -= 150 * dt;
+    if (keys.ArrowDown || keys.KeyS) p.y += 150 * dt;
+    p.x = clamp(p.x, 26, W - 26); p.y = clamp(p.y, 110, H - 30);
+    this.fire -= dt;
+    if ((pressed.Space || keys.Space) && this.fire <= 0) {
+      this.bullets.push({ x: p.x, y: p.y - 24 }); this.fire = .2; beep(600, .04);
+    }
+    for (const b of this.bullets) b.y -= 480 * dt;
+    this.bullets = this.bullets.filter(b => b.y > -10);
+    this.spawn -= dt;
+    if (this.spawn <= 0) {
+      this.foes.push({ x: rand(30, W - 30), y: -30, vx: rand(-20, 20) });
+      this.spawn = rand(.6, 1.2) / this.dm.traffic;
+    }
+    for (const f of this.foes) {
+      const a = Math.atan2(p.y - f.y, p.x - f.x);
+      f.x += Math.cos(a) * 25 * this.spd * dt + f.vx * dt;
+      f.y += Math.sin(a) * 45 * this.spd * dt;
+      if (Math.hypot(f.x - p.x, f.y - p.y) < 32) { f.dead = true; this.lives--; beep(150, .16); }
+      for (const b of this.bullets) {
+        if (!b.dead && !f.dead && Math.hypot(b.x - f.x, b.y - f.y) < 26) {
+          b.dead = true; f.dead = true; this.hits++; this.score += 10; beep(480, .06); break;
+        }
+      }
+    }
+    this.foes = this.foes.filter(f => !f.dead); this.bullets = this.bullets.filter(b => !b.dead);
+    this.time -= dt;
+    if (this.hits >= this.goal) this.finish(true, 'Зомби побеждены!');
+    else if (this.lives <= 0) this.finish(false, 'Тебя окружили');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  draw(ctx) {
+    ctx.fillStyle = '#1c3525'; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 8; i++) drawEmoji(ctx, '🪦', (i * 113) % W, H - 30, 32);
+    for (const f of this.foes) drawEmoji(ctx, '🧟', f.x, f.y, 40);
+    ctx.fillStyle = this.p.settings.accent;
+    for (const b of this.bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, 7); ctx.fill(); }
+    drawEmoji(ctx, '🔫', this.player.x, this.player.y - 8, 30);
+    drawEmoji(ctx, this.p.settings.hero || '🧍', this.player.x, this.player.y, 44);
+    this.edit(ctx, '🧟', 'Оборона от зомби', `Победи ${this.goal} зомби за ${this.limit} секунд.`);
+  }
+  getHud() { return this.goalHud('🧟') + this.scoreHud() + this.heartHud() + this.timeHud(); }
+}
+
+/* ---------- Экшен 3: Спаси друзей ---------- */
+class RescueEngine extends GenreEngine {
+  reset() {
+    this.score = 0; this.lives = this.p.settings.lives || 3; this.rescued = 0;
+    this.time = this.limit; this.finished = false;
+    this.hero = { x: W / 2, y: H / 2 };
+    this.friends = []; this.fires = [];
+    for (let i = 0; i < 3; i++) this.friends.push({ x: rand(70, W - 70), y: rand(80, H - 70) });
+    for (let i = 0; i < 3; i++) this.fires.push({ x: rand(50, W - 50), y: rand(70, H - 50), a: rand(0, 6) });
+    this.spawn = 2;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const h = this.hero, s = 190 * this.spd;
+    if (keys.ArrowLeft || keys.KeyA) h.x -= s * dt;
+    if (keys.ArrowRight || keys.KeyD) h.x += s * dt;
+    if (keys.ArrowUp || keys.KeyW) h.y -= s * dt;
+    if (keys.ArrowDown || keys.KeyS) h.y += s * dt;
+    h.x = clamp(h.x, 30, W - 30); h.y = clamp(h.y, 60, H - 30);
+    for (let i = this.friends.length - 1; i >= 0; i--) {
+      if (Math.hypot(this.friends[i].x - h.x, this.friends[i].y - h.y) < 34) {
+        this.friends.splice(i, 1); this.rescued++; this.score += 25; beep(880, .08);
+        this.friends.push({ x: rand(70, W - 70), y: rand(80, H - 70) });
+      }
+    }
+    for (const f of this.fires) {
+      f.a += dt;
+      f.x = clamp(f.x + Math.cos(f.a) * 22 * dt, 40, W - 40);
+      f.y = clamp(f.y + Math.sin(f.a * .7) * 18 * dt, 60, H - 40);
+    }
+    this.spawn -= dt;
+    if (this.spawn <= 0) {
+      this.fires.push({ x: rand(50, W - 50), y: rand(70, H - 50), a: rand(0, 6) });
+      this.spawn = rand(2.5, 4) / this.dm.traffic;
+    }
+    for (const f of this.fires) {
+      if (Math.hypot(f.x - h.x, f.y - h.y) < 36) {
+        this.lives--; h.x = W / 2; h.y = H / 2; beep(170, .16); break;
+      }
+    }
+    this.time -= dt;
+    if (this.rescued >= this.goal) this.finish(true, 'Все друзья спасены!');
+    else if (this.lives <= 0) this.finish(false, 'Слишком много ожогов');
+    else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  draw(ctx) {
+    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(90,200,120,.12)'; ctx.fillRect(0, 50, W, H - 50);
+    for (let i = 0; i < 10; i++) drawEmoji(ctx, '🌳', (i * 97 + 30) % W, 80 + ((i * 61) % (H - 140)), 34);
+    for (const f of this.friends) drawEmoji(ctx, '🧒', f.x, f.y, 42);
+    for (const f of this.fires) drawEmoji(ctx, '🔥', f.x, f.y, 40);
+    drawEmoji(ctx, this.p.settings.hero || '🦸', this.hero.x, this.hero.y, 50);
+    this.edit(ctx, '🕊️', 'Спаси друзей', `Спаси ${this.goal} друзей и избегай огня.`);
+  }
+  getHud() { return this.goalHud('🧒') + this.scoreHud() + this.heartHud() + this.timeHud(); }
+}
+
 function makeEngine(p) {
   let e;
   if (p.template === 'platformer') e = new PlatformerEngine(p);
@@ -1986,6 +2862,18 @@ function makeEngine(p) {
   else if (p.template === 'tictactoe') e = new TicTacToeEngine(p);
   else if (p.template === 'memory') e = new MemoryEngine(p);
   else if (p.template === 'math') e = new MathEngine(p);
+  else if (p.template === 'starraid') e = new StarRaidEngine(p);
+  else if (p.template === 'tank') e = new TankEngine(p);
+  else if (p.template === 'range') e = new RangeEngine(p);
+  else if (p.template === 'whack') e = new WhackEngine(p);
+  else if (p.template === 'runner') e = new RunnerEngine(p);
+  else if (p.template === 'reaction') e = new ReactionEngine(p);
+  else if (p.template === 'defense') e = new DefenseEngine(p);
+  else if (p.template === 'farm') e = new FarmEngine(p);
+  else if (p.template === 'duel') e = new DuelEngine(p);
+  else if (p.template === 'brawl') e = new BrawlEngine(p);
+  else if (p.template === 'zombie') e = new ZombieEngine(p);
+  else if (p.template === 'rescue') e = new RescueEngine(p);
   else e = new QuizEngine(p, $('#interactiveLayer'));
   e.onFinish = handleFinish;
   return e;
@@ -2116,11 +3004,21 @@ function updateChips() {
   if (p.template === 'memory') n = p.settings.pairs * 2;
   if (p.template === 'math') n = p.settings.count;
   if (p.template === 'snake') n = Math.round(p.settings.speed * 10);
-  const labels = {
+  if (GENRE_IDS.includes(p.template)) {
+    n = p.template === 'runner' ? Math.max(40, (p.settings.count || 10) * 10)
+      : p.template === 'duel' ? Math.max(40, (p.settings.lives || 3) * 30)
+      : Math.max(3, Math.round((p.settings.count || 10) * (DIFF[p.settings.difficulty] || DIFF.normal).traffic));
+  }
+  const genreLabels = {
+    starraid: '👾 сбить', tank: '🛡️ разбить', range: '🎯 попасть', whack: '🐹 поймать',
+    runner: '🏁 метров', reaction: '⚡ очков', defense: '👾 отразить', farm: '🌾 собрать',
+    duel: '❤️ прочность', brawl: '🥊 боя', zombie: '🧟 победить', rescue: '🧒 спасти'
+  };
+  const labels = Object.assign({
     quiz: '❓ вопросов', racer: '🚗 поток', catcher: '🍎 поток', pong: '🏆 до победы',
     arkanoid: '🧱 кирпичей', shooter: '👾 пришельцев', tictactoe: '⭕ клеток',
     memory: '🃏 карточек', math: '🧮 примеров', snake: '⚡ скорость'
-  };
+  }, genreLabels);
   $('#chipObjects').textContent = `${labels[p.template] || '🪐 объектов'}: ${n}`;
   $('#chipMode').textContent = state.mode === 'play' ? '▶ Режим: игра' : '✏️ Режим: редактор';
 }
@@ -2170,8 +3068,11 @@ function handleFinish(win, msg) {
 function commonSettings(p) {
   const bgPresets = ['#20234a', '#123b52', '#3b2352', '#1d3b2a', '#4a2338', '#0f3a4d'];
   const acPresets = ['#ffd166', '#ff9f43', '#38c172', '#5ac8fa', '#ff6b81', '#c792ea'];
-  const withRules = ['platformer', 'collector', 'racer', 'catcher', 'snake', 'pong', 'arkanoid', 'shooter', 'math'].includes(p.template);
-  const withLives = ['platformer', 'collector', 'racer', 'catcher', 'arkanoid', 'shooter', 'math'].includes(p.template);
+  const genreLives = ['starraid', 'tank', 'whack', 'runner', 'defense', 'brawl', 'zombie', 'rescue'];
+  const withRules = GENRE_IDS.includes(p.template) ||
+    ['platformer', 'collector', 'racer', 'catcher', 'snake', 'pong', 'arkanoid', 'shooter', 'math'].includes(p.template);
+  const withLives = genreLives.includes(p.template) ||
+    ['platformer', 'collector', 'racer', 'catcher', 'arkanoid', 'shooter', 'math'].includes(p.template);
   let html = `
   <div class="tool-section">
     <h4 class="tool-title">🎨 Оформление</h4>
@@ -2431,10 +3332,40 @@ function mathSection(p) {
     </div>
   </div>`;
 }
+function genreSection(p) {
+  const title = TEMPLATES[p.template].tag;
+  const goalLabel = {
+    starraid: 'Сколько врагов сбить', tank: 'Сколько танков разбить',
+    range: 'Сколько мишеней поразить', whack: 'Сколько кротов поймать',
+    runner: 'Дистанция (в десятках метров)', reaction: 'Нужно очков',
+    defense: 'Сколько врагов отразить', farm: 'Сколько урожаев собрать',
+    duel: 'Прочность героя', brawl: 'Сколько ударов нанести',
+    zombie: 'Сколько зомби победить', rescue: 'Сколько друзей спасти'
+  }[p.template] || 'Цель игры';
+  const noTime = p.template === 'duel' || p.template === 'runner';
+  return `<div class="tool-section">
+    <h4 class="tool-title">🎯 ${title}: цель игры</h4>
+    <label class="field-label">${goalLabel}</label>
+    <div class="range-row">
+      <input type="range" id="fldCount" min="3" max="20" step="1" value="${p.settings.count}">
+      <span class="range-value" id="countVal">${p.settings.count}</span>
+    </div>
+    ${noTime ? '' : `<label class="field-label" style="margin-top:14px">Время на игру, секунд</label>
+    <div class="range-row">
+      <input type="range" id="fldSeconds" min="20" max="120" step="5" value="${p.settings.seconds}">
+      <span class="range-value" id="secondsVal">${p.settings.seconds}</span>
+    </div>`}
+    <p class="hint-mini">Сложность и скорость меняются выше, в разделе «Правила игры».</p>
+  </div>`;
+}
 function renderTools() {
   const p = state.project;
   if (!p) return;
   let html = commonSettings(p);
+  if (GENRE_IDS.includes(p.template)) {
+    html += genreSection(p);
+    if (['starraid', 'runner', 'zombie', 'rescue'].includes(p.template)) html += heroSection(p);
+  }
   if (p.template === 'platformer' || p.template === 'collector') html += heroSection(p) + levelSection(p) + customItemsSection(p);
   if (p.template === 'racer') html += racerSection(p);
   if (p.template === 'catcher') html += catcherSection(p);
@@ -2528,13 +3459,13 @@ function openHelp() {
     <h3>📖 Как создать игру</h3>
     <p class="modal-sub">Всё просто — всего 5 шагов:</p>
     <ol class="modal-steps">
-      <li><b>Выбери шаблон</b>: платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память или математика.</li>
+      <li><b>Выбери шаблон</b>: всего 24 игры. Шутеры — «Звёздный рейд», «Танковый бой», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Плюс платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
       <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
       <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим.</li>
       <li><b>Сохрани или поделись</b>: «💾 Сохранить» — в браузере, «🌟 В галерею» — на общей странице, «🚀 Поделиться» — ссылка другу.</li>
     </ol>
-    <p class="modal-sub">📱 На телефоне во время игры под полем появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. Игры с выбором ответа работают простым касанием по экрану.</p>
+    <p class="modal-sub">📱 На телефоне во время игры появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. В играх «Меткий тир», «Бей кротов», «Быстрая реакция», «Защита замка», «Умная ферма» и «Поединок героев» кнопки не нужны: просто нажимай пальцем прямо по полю.</p>
     <div class="modal-actions"><button class="btn btn-primary" data-modal="close">Понятно! 🎮</button></div>`);
 }
 function utf8ToB64(str) {
