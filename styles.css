@@ -380,24 +380,27 @@ input[type="color"] { width: 44px; height: 40px; padding: 2px; border: 2px solid
 }
 #gameStage:fullscreen,
 #gameStage.fake-fullscreen {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; width: 100vw; height: 100vh; height: 100dvh; padding: 12px;
-  background: #14132e; box-sizing: border-box; overflow: hidden;
+  width: 100vw; height: 100vh; height: 100dvh; padding: 0;
+  background: #000; box-sizing: border-box; overflow: hidden;
 }
 #gameStage.fake-fullscreen { position: fixed; inset: 0; z-index: 1000; }
 #gameStage:fullscreen .fs-exit,
 #gameStage.fake-fullscreen .fs-exit { display: flex; }
+/* Само игровое поле растягивается на весь экран */
 #gameStage:fullscreen .canvas-wrap,
 #gameStage.fake-fullscreen .canvas-wrap {
-  flex: 0 1 auto; width: auto; max-width: 100%; height: auto;
-  max-height: calc(100% - 140px); aspect-ratio: 800 / 448; margin: 0;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  max-width: none; max-height: none; aspect-ratio: auto; margin: 0;
+  border: 0; border-radius: 0; background: #000;
 }
-#gameStage:fullscreen:not(:has(#touchControls:not(.hidden))) .canvas-wrap,
-#gameStage.fake-fullscreen:not(:has(#touchControls:not(.hidden))) .canvas-wrap { max-height: 100%; }
+#gameStage:fullscreen #gameCanvas,
+#gameStage.fake-fullscreen #gameCanvas { width: 100%; height: 100%; }
+/* Кнопки управления лежат поверх поля, а не под ним */
 #gameStage:fullscreen .touch-controls,
 #gameStage.fake-fullscreen .touch-controls {
-  flex: none; width: min(100%, 520px); margin: 0 auto;
-  background: rgba(255,255,255,.94);
+  position: absolute; left: 10px; right: 10px; bottom: 10px; width: auto;
+  margin: 0; z-index: 50; background: rgba(255,255,255,.86);
+  backdrop-filter: blur(6px); border-radius: 16px;
 }
 @media (max-width: 560px) {
   .touch-controls { padding: 10px 8px; gap: 8px; }
