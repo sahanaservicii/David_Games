@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Русский квест — 10 быстрых уроков</title>
+<style>
+  :root{
+    --bg1:#f3efff; --bg2:#fff7e6; --ink:#2c2545; --muted:#746c94;
+    --card:#ffffff; --accent:#8b5cf6; --accent2:#f59e0b;
+    --good:#18a874; --bad:#e0526b; --warn:#e8a020;
+    --shadow:0 12px 30px rgba(80,50,140,.13);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    background-attachment:fixed;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:24px 16px 60px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .logo{font-size:34px;line-height:1}
+  h1{font-size:clamp(22px,4vw,32px);margin:0;letter-spacing:-.5px}
+  .subtitle{color:var(--muted);margin:4px 0 0;font-size:14px}
+  .panel{
+    background:var(--card);border-radius:24px;padding:24px;box-shadow:var(--shadow);
+    border:2px solid rgba(139,92,246,.10);
+  }
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .progress-info{font-weight:700;font-size:15px}
+  .bar{height:12px;border-radius:99px;background:#efeafa;overflow:hidden;margin:10px 0 22px}
+  .bar > i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .5s}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+  .lesson-card{
+    text-align:left;cursor:pointer;border:2px solid #efeafa;background:#fff;border-radius:20px;
+    padding:16px;min-height:138px;transition:transform .15s,box-shadow .15s,border-color .15s;
+    font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px;
+  }
+  .lesson-card:hover{transform:translateY(-4px);box-shadow:0 14px 28px rgba(90,50,160,.16);border-color:#d3c1ff}
+  .lesson-card:focus-visible,.btn:focus-visible,.choice:focus-visible,input:focus-visible{outline:3px solid #c8b0ff;outline-offset:2px}
+  .lc-top{display:flex;align-items:center;justify-content:space-between;font-size:30px}
+  .lc-num{font-size:13px;font-weight:800;color:var(--accent);background:#f2ecff;border-radius:99px;padding:4px 10px}
+  .lc-title{font-weight:800;font-size:16px;line-height:1.25}
+  .lc-meta{margin-top:auto;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .stars{color:#f5a623;letter-spacing:1px;font-size:14px}
+  .badge-done{background:#e6f8f1;color:var(--good);border-radius:99px;padding:3px 9px;font-weight:700;font-size:12px}
+  .btn{
+    border:0;border-radius:14px;padding:12px 18px;font:inherit;font-weight:800;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),#a77bff);color:#fff;box-shadow:0 6px 16px rgba(139,92,246,.26);
+    transition:transform .12s,filter .12s;
+  }
+  .btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:#f3eeff;color:var(--accent);box-shadow:none}
+  .btn.small{padding:8px 12px;font-size:13px;border-radius:11px}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .hidden{display:none!important}
+  .hint-line{color:var(--muted);font-size:14px;margin-top:18px}
+  .reset{margin-top:20px;font-size:12px;color:#a097b8;background:none;border:0;cursor:pointer;text-decoration:underline;font-family:inherit}
+  /* lesson */
+  .lesson-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .lesson-head h2{margin:0;font-size:24px}
+  .intro{margin:10px 0 18px;color:#514970;line-height:1.6;background:#f8f5ff;border-left:4px solid var(--accent);padding:12px 14px;border-radius:0 12px 12px 0}
+  .timer{font-variant-numeric:tabular-nums;background:#fff4e3;color:#a76b12;border-radius:12px;padding:8px 12px;font-weight:800;white-space:nowrap}
+  .timer.late{background:#ffe7ec;color:var(--bad)}
+  .dots{display:flex;gap:7px;margin:6px 0 22px}
+  .dot{width:12px;height:12px;border-radius:50%;background:#e9e3f7;transition:background .2s,transform .2s}
+  .dot.now{background:var(--accent);transform:scale(1.25)}
+  .dot.ok{background:var(--good)}
+  .qcard{background:linear-gradient(160deg,#fff,#fdfaff);border:2px solid #efeafa;border-radius:20px;padding:22px}
+  .qnum{color:var(--accent);font-weight:800;font-size:13px;margin-bottom:8px}
+  .question{font-size:clamp(19px,3.2vw,26px);font-weight:800;line-height:1.4;margin-bottom:18px}
+  .answer-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input[type=text]{
+    font:inherit;font-size:20px;font-weight:700;padding:11px 14px;border:2px solid #e3daf8;
+    border-radius:13px;width:min(300px,100%);color:var(--ink);background:#fff;
+  }
+  .choices{display:flex;gap:10px;flex-wrap:wrap}
+  .choice{
+    font:inherit;font-weight:800;font-size:17px;padding:10px 18px;border-radius:13px;cursor:pointer;
+    border:2px solid #e3daf8;background:#fff;color:var(--ink);
+  }
+  .choice.selected{border-color:var(--accent);background:#f3eeff;color:var(--accent)}
+  .feedback{min-height:26px;margin-top:16px;font-weight:700;line-height:1.5}
+  .feedback.good{color:var(--good)}
+  .feedback.bad{color:var(--bad)}
+  .explain{margin-top:8px;font-weight:500;color:#514970;font-size:15px;background:#f2fbf8;border-radius:12px;padding:10px 12px}
+  .hintbox{margin-top:14px;background:#fff8e8;border:1px dashed var(--warn);border-radius:12px;padding:10px 12px;font-size:14px;color:#8a6415}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;align-items:center}
+  .backlink{color:var(--muted);background:none;border:0;font:inherit;cursor:pointer;text-decoration:underline;padding:6px}
+  /* result */
+  .result{text-align:center}
+  .result .big{font-size:64px;line-height:1}
+  .result h2{font-size:28px;margin:8px 0}
+  .result-stars{font-size:40px;letter-spacing:6px;margin:10px 0}
+  .stats{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;color:var(--muted);margin:14px 0 22px}
+  .stats b{display:block;color:var(--ink);font-size:20px}
+  .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:99}
+  .confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:fall 2.4s ease-in forwards}
+  @keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.2}}
+  @media(max-width:600px){.wrap{padding:16px 12px 40px}.panel{padding:18px}.question{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">📚</div>
+    <div>
+      <h1>Русский квест</h1>
+      <p class="subtitle">10 уроков по 10 минут · грамматика, слова и смекалка</p>
+    </div>
+  </header>
+
+  <section id="home" class="panel">
+    <div class="topbar">
+      <div class="progress-info" id="progressText"></div>
+      <button class="btn small ghost" id="startNext">Продолжить обучение →</button>
+    </div>
+    <div class="bar"><i id="progressBar"></i></div>
+    <div class="grid" id="grid"></div>
+    <p class="hint-line">Открой урок → прочитай объяснение → решай задания. Букву «ё» можно писать как «е» — оба варианта засчитываются. За каждый верный ответ — звезда ⭐.</p>
+    <button class="reset" id="resetBtn">Сбросить весь прогресс</button>
+  </section>
+
+  <section id="lesson" class="panel hidden">
+    <div class="lesson-head">
+      <div>
+        <h2 id="lessonTitle"></h2>
+        <div class="subtitle" id="lessonCounter"></div>
+      </div>
+      <div class="timer" id="timer">10:00</div>
+    </div>
+    <p class="intro" id="lessonIntro"></p>
+    <div class="dots" id="dots"></div>
+    <div class="qcard">
+      <div class="qnum" id="qnum"></div>
+      <div class="question" id="question"></div>
+      <div class="answer-row" id="answerArea"></div>
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+      <div class="actions">
+        <button class="btn" id="checkBtn">Проверить</button>
+        <button class="btn ghost small" id="hintBtn">💡 Подсказка</button>
+        <button class="backlink" id="backBtn">Вернуться к урокам</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="panel result hidden">
+    <div class="big" id="resultIcon">🏆</div>
+    <h2 id="resultTitle"></h2>
+    <div class="result-stars" id="resultStars"></div>
+    <p id="resultText" class="subtitle"></p>
+    <div class="stats" id="resultStats"></div>
+    <div class="actions" style="justify-content:center">
+      <button class="btn" id="nextLessonBtn">Следующий урок →</button>
+      <button class="btn ghost" id="homeBtn">К списку уроков</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const lessons = [
+  {
+    id:1, icon:"🔤", title:"Буквы и звуки",
+    intro:"В русском алфавите 33 буквы. Гласные: а, е, ё, и, о, у, ы, э, ю, я. Остальные буквы — согласные. Мягкий знак (ь) и твёрдый знак (ъ) звуков не обозначают.",
+    tasks:[
+      {q:"Сколько букв в русском алфавите?", type:"choice", answer:"33", options:["26","32","33"], hint:"Больше, чем в английском. Вспомни: 33.", explain:"В русском алфавите 33 буквы: 10 гласных, 20 согласных и 2 знака."},
+      {q:"Напиши первую букву слова «яблоко».", type:"text", answer:"я", hint:"Слово начинается с гласной.", explain:"Яблоко начинается с буквы «я» — это гласный звук."},
+      {q:"Сколько звуков в слове «ёлка»?", type:"choice", answer:"4", options:["3","4","5"], hint:"Посчитай: ё — л — к — а.", explain:"Ёлка: ё, л, к, а — 4 звука и 4 буквы."},
+      {q:"Какая буква не даёт звука: «л» или «ь»?", type:"text", answer:"ь", hint:"Одна из них — просто знак.", explain:"Мягкий знак «ь» звука не обозначает, он только смягчает согласный."}
+    ]
+  },
+  {
+    id:2, icon:"🎯", title:"Ударение",
+    intro:"Ударный гласный звук выделяется голосом. В слове «молоко» ударение падает на последний слог: молоко́.",
+    tasks:[
+      {q:"Где ударение в слове «молоко»?", type:"choice", answer:"молоко́", options:["мо́локо","моло́ко","молоко́"], hint:"Проверь себя: ударение в слове «молоко́» стоит в конце.", explain:"Молоко́ — ударение на последний слог."},
+      {q:"В слове «яблоко» ударение падает на слог я / бло / ко. Напиши этот слог.", type:"text", answer:"я", hint:"Скажи слово вслух: Яблоко.", explain:"Я́блоко — ударение на первый слог."},
+      {q:"В каком слове ударение на первый слог?", type:"choice", answer:"ШКОЛА", options:["МАГАЗИН","ХОЛОДИЛЬНИК","ШКОЛА"], hint:"Скажи каждое слово вслух и сравни.", explain:"Шко́ла — первый слог. Магази́н — третий, холо́дильник — второй."},
+      {q:"Слово «словарь»: ударение на первый или второй слог?", type:"text", answer:"второй", hint:"Слова́рь — скажи с ударением.", explain:"Слова́рь — ударение на второй слог."}
+    ]
+  },
+  {
+    id:3, icon:"🌱", title:"Корень и однокоренные слова",
+    intro:"Корень — главная часть слова, в ней спрятано его значение. У однокоренных слов корень один: лес, лесник, лесной.",
+    tasks:[
+      {q:"Найди корень в слове «лесник».", type:"text", answer:"лес", hint:"Лесник — тот, кто работает в лесу.", explain:"Лесник ← лес. Корень — лес."},
+      {q:"Какое слово однокоренное со словом «вода»?", type:"choice", answer:"водный", options:["водный","домашний","солнечный"], hint:"В слове должна быть та же основа — вод-.", explain:"Водный ← вода. Однокоренные: вода, водный, подводный."},
+      {q:"Какая приставка в слове «переход»?", type:"text", answer:"пере", hint:"Слово состоит из пере- и -ход.", explain:"Пере- + ход = переход. Приставка стоит перед корнем."},
+      {q:"Какое окончание в слове «красивый»?", type:"text", answer:"ый", hint:"Отдели основу: красив-...", explain:"Красив- + -ый. Окончание — -ый."}
+    ]
+  },
+  {
+    id:4, icon:"📦", title:"Имена существительные",
+    intro:"Существительное отвечает на вопросы «кто?» или «что?». Бывает мужского, женского и среднего рода и меняется по числам: один стул — много стульев.",
+    tasks:[
+      {q:"К какому роду относится слово «солнце»?", type:"choice", answer:"средний", options:["мужской","женский","средний"], hint:"Это «оно» — солнце.", explain:"Солнце — оно, средний род."},
+      {q:"Множественное число: «стул» → ?", type:"text", answer:"стулья", hint:"Не просто «стулы», есть особая форма.", explain:"Один стул, много стульев. Форма множественного числа — стулья."},
+      {q:"К слову «учитель» какой вопрос: «кто?» или «что?»?", type:"text", answer:"кто", hint:"Учитель — это человек.", explain:"Учитель — вопрос «кто?», потому что это человек."},
+      {q:"Образуй женский род: «ученик» → ?", type:"text", answer:"ученица", hint:"Ученик + -ица.", explain:"Ученик → ученица. Так же: друг → подруга."}
+    ]
+  },
+  {
+    id:5, icon:"🎨", title:"Имена прилагательные",
+    intro:"Прилагательное отвечает на вопрос «какой?» и согласуется с существительным: большой стол, большая машина, большое озеро, большие дома.",
+    tasks:[
+      {q:"Подбери форму: «... стол» (большой).", type:"text", answer:"большой", hint:"Стол — мужской род.", explain:"Большой стол. Для мужского рода форма «большой»."},
+      {q:"Подбери форму: «нов... машина».", type:"text", answer:"новая", hint:"Машина — женский род.", explain:"Новая машина. Женский род — «новая»."},
+      {q:"Какое слово прилагательное?", type:"choice", answer:"белый", options:["бегать","белый","бегун"], hint:"Прилагательное отвечает на вопрос «какой?».", explain:"Белый — признак предмета. Бегать — глагол, бегун — существительное."},
+      {q:"Множественное число: «красивый цветок» → «красивые ...»", type:"text", answer:"цветы", hint:"Один цветок — много цветов.", explain:"Красивые цветы. Форма множественного числа — цветы."}
+    ]
+  },
+  {
+    id:6, icon:"🏃", title:"Глаголы",
+    intro:"Глагол отвечает на вопрос «что делать?» и меняется по временам: рисую (сейчас), рисовал (было), буду рисовать (будет).",
+    tasks:[
+      {q:"Какое слово глагол?", type:"choice", answer:"прыгать", options:["прыжок","прыгать","прыгун"], hint:"Глагол отвечает на вопрос «что делать?».", explain:"Прыгать — глагол. Прыжок — существительное, прыгун — тоже существительное."},
+      {q:"Начальная форма: «играю» → ?", type:"text", answer:"играть", hint:"Начальная форма заканчивается на -ть.", explain:"Играю → играть. Это неопределённая форма глагола."},
+      {q:"Прошедшее время: «он рисует» → «он ...».", type:"text", answer:"рисовал", hint:"Рисует сейчас, а раньше — рисовал.", explain:"Рисует (настоящее время) → рисовал (прошедшее время)."},
+      {q:"Будущее время: «читаю» → «я буду ...».", type:"text", answer:"читать", hint:"После «буду» глагол в начальной форме.", explain:"Будущее время: буду читать."}
+    ]
+  },
+  {
+    id:7, icon:"🔗", title:"Предлоги",
+    intro:"Предлог — маленькое слово, которое связывает слова: в, на, у, к, с, под, над, за. Предлоги пишутся отдельно от слов.",
+    tasks:[
+      {q:"Дополни: «книга ... столе».", type:"text", answer:"на", hint:"Книга лежит на поверхности стола.", explain:"Книга на столе — предлог «на»."},
+      {q:"Дополни: «мяч ... столом».", type:"text", answer:"под", hint:"Мяч ниже стола.", explain:"Мяч под столом — предлог «под»."},
+      {q:"Какой предлог нужен: «Я иду ... школу»?", type:"choice", answer:"в", options:["в","на","у"], hint:"Речь о направлении: иду внутрь здания.", explain:"Иду в школу. Предлог «в» указывает направление."},
+      {q:"Напиши предлог из фразы «у друга».", type:"text", answer:"у", hint:"Это маленькое слово перед словом «друга».", explain:"Предлог «у»: у друга, у мамы, у меня."}
+    ]
+  },
+  {
+    id:8, icon:"🔁", title:"Синонимы и антонимы",
+    intro:"Синонимы — слова, близкие по смыслу: весёлый — радостный. Антонимы — противоположные по смыслу: день — ночь.",
+    tasks:[
+      {q:"Антоним к слову «день».", type:"text", answer:"ночь", hint:"День сменяется...", explain:"День ↔ ночь — антонимы."},
+      {q:"Напиши синоним к слову «красивый» (одно слово).", type:"text", answer:["прекрасный","великолепный","чудесный"], hint:"Подбери слово, похожее по смыслу.", explain:"Красивый — прекрасный, великолепный, чудесный."},
+      {q:"Какая пара слов — антонимы?", type:"choice", answer:"быстрый — медленный", options:["большой — огромный","быстрый — медленный","дом — здание"], hint:"Антонимы — противоположные признаки.", explain:"Быстрый ↔ медленный. Остальные пары — синонимы."},
+      {q:"Антоним к слову «весёлый».", type:"text", answer:"грустный", hint:"Противоположное настроение.", explain:"Весёлый ↔ грустный."}
+    ]
+  },
+  {
+    id:9, icon:"💬", title:"Пословицы и фразеологизмы",
+    intro:"Фразеологизм — устойчивое выражение, смысл которого не всегда понятен буквально. Например, «бить баклуши» — просто бездельничать.",
+    tasks:[
+      {q:"Закончи пословицу: «Труд человека ...».", type:"text", answer:"кормит", hint:"Полная пословица: «Труд человека кормит, а лень портит».", explain:"Труд человека кормит, а лень портит."},
+      {q:"Что значит «бить баклуши»?", type:"choice", answer:"бездельничать", options:["работать","бездельничать","драться"], hint:"Это выражение про лень.", explain:"Бить баклуши — бездельничать, ничего не делать."},
+      {q:"Закончи: «Умный в гору не пойдёт, умный гору ...».", type:"text", answer:"обойдёт", hint:"Умный не лезет, а обходит.", explain:"Умный в гору не пойдёт, умный гору обойдёт."},
+      {q:"Что значит «вести за нос»?", type:"choice", answer:"обманывать", options:["обманывать","играть","спать"], hint:"Речь не о настоящем носу — это устойчивое выражение.", explain:"Вести за нос — обманывать, вводить в заблуждение."}
+    ]
+  },
+  {
+    id:10, icon:"🏆", title:"Финальный квест: всё вместе",
+    intro:"Корни, части речи, ударение, предлоги и смекалка — всё в одном уроке. Читай внимательно и считай по шагам!",
+    tasks:[
+      {q:"Напиши корень слова «подводный».", type:"text", answer:"вод", hint:"Под- + вод- + -ный.", explain:"Корень — вод-. Слово родственно слову «вода»."},
+      {q:"«Серебряный» — существительное или прилагательное?", type:"text", answer:"прилагательное", hint:"Это слово отвечает на вопрос «какой?».", explain:"Серебряный — прилагательное, признак предмета."},
+      {q:"Сколько слогов в слове «машина»?", type:"text", answer:"3", hint:"ма-ши-на", explain:"Машина делится на 3 слога: ма-ши-на."},
+      {q:"Закончи пословицу: «Не имей сто рублей, а имей сто ...».", type:"text", answer:"друзей", hint:"Речь о настоящих друзьях.", explain:"Не имей сто рублей, а имей сто друзей."},
+      {q:"Отгадай загадку: «Зимой и летом одним цветом». Что это?", type:"choice", answer:"ёлка", options:["ёлка","берёза","яблоня"], hint:"Всегда зелёная.", explain:"Ёлка (ель) остаётся зелёной и зимой, и летом."}
+    ]
+  }
+];
+
+const STORE = "russianQuestProgress_v1";
+let progress = {};
+try { progress = JSON.parse(localStorage.getItem(STORE)) || {}; } catch(e){ progress = {}; }
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify(progress)); }catch(e){} }
+function starsOf(l){ return Math.min((progress[l.id] && progress[l.id].stars) || 0, l.tasks.length); }
+function isDone(l){ return !!(progress[l.id] && progress[l.id].done); }
+
+const $ = id => document.getElementById(id);
+const views = {home:$("home"), lesson:$("lesson"), result:$("result")};
+function show(view){ Object.values(views).forEach(v=>v.classList.add("hidden")); views[view].classList.remove("hidden"); window.scrollTo({top:0,behavior:"smooth"}); }
+
+function norm(v){ return String(v).trim().toLowerCase().replace(/ё/g,"е").replace(/[.,!?;:'´`]/g,"").replace(/\s+/g," "); }
+function editDist(a,b){
+  if(a===b) return 0;
+  if(Math.abs(a.length-b.length)>1) return 2;
+  let prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const cur=[i];
+    for(let j=1;j<=b.length;j++){
+      cur[j]=Math.min(cur[j-1]+1, prev[j]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    }
+    prev=cur;
+  }
+  return prev[b.length];
+}
+function matches(raw, accepted){
+  const r=norm(raw);
+  return accepted.some(a=>norm(a)===r) || (r.length>=5 && accepted.some(a=>editDist(norm(a),r)<=1));
+}
+
+/* ---------- home ---------- */
+function renderHome(){
+  const done = lessons.filter(isDone).length;
+  const totalStars = lessons.reduce((s,l)=>s+starsOf(l),0);
+  $("progressText").textContent = `Пройдено ${done} из ${lessons.length} уроков · ⭐ ${totalStars}`;
+  $("progressBar").style.width = (done/lessons.length*100) + "%";
+  $("grid").innerHTML = lessons.map(l=>{
+    const st = starsOf(l), doneMark = isDone(l) ? '<span class="badge-done">✓ пройден</span>' : `<span>${"⭐".repeat(st)}${"☆".repeat(l.tasks.length-st)}</span>`;
+    return `<button class="lesson-card" data-id="${l.id}">
+      <div class="lc-top"><span>${l.icon}</span><span class="lc-num">урок ${l.id}</span></div>
+      <div class="lc-title">${l.title}</div>
+      <div class="lc-meta"><span>~10 минут · ${l.tasks.length} заданий</span>${doneMark}</div>
+    </button>`;
+  }).join("");
+}
+$("grid").addEventListener("click", e=>{
+  const card = e.target.closest(".lesson-card");
+  if(card) startLesson(Number(card.dataset.id)-1);
+});
+$("startNext").addEventListener("click", ()=>{
+  const next = lessons.findIndex(l=>!isDone(l));
+  startLesson(next === -1 ? 0 : next);
+});
+$("resetBtn").addEventListener("click", ()=>{
+  if(confirm("Сбросить все звёзды и пройденные уроки?")){ progress={}; save(); renderHome(); }
+});
+
+/* ---------- lesson engine ---------- */
+let cur=0, idx=0, correct=0, selected=null, locked=false, timerId=null, deadline=0;
+function startTimer(){
+  clearInterval(timerId);
+  deadline = Date.now()+10*60*1000;
+  $("timer").classList.remove("late");
+  timerId = setInterval(tick, 500);
+  tick();
+}
+function tick(){
+  const left = Math.max(0, Math.ceil((deadline-Date.now())/1000));
+  const m = String(Math.floor(left/60)).padStart(2,"0"), s = String(left%60).padStart(2,"0");
+  $("timer").textContent = `${m}:${s}`;
+  if(left <= 120) $("timer").classList.add("late");
+  if(left === 0){ clearInterval(timerId); $("timer").textContent = "⏰"; }
+}
+function stopTimer(){ clearInterval(timerId); }
+
+function startLesson(n){
+  cur=n; idx=0; correct=0; selected=null; locked=false;
+  const l=lessons[cur];
+  $("lessonTitle").textContent = `${l.icon} ${l.title}`;
+  $("lessonIntro").textContent = l.intro;
+  show("lesson");
+  startTimer();
+  renderTask();
+}
+function renderTask(){
+  const l=lessons[cur], t=l.tasks[idx];
+  selected=null; locked=false;
+  $("qnum").textContent = `Задание ${idx+1} из ${l.tasks.length}`;
+  $("lessonCounter").textContent = `Урок ${l.id} из ${lessons.length}`;
+  $("question").textContent = t.q;
+  $("feedback").className = "feedback";
+  $("feedback").textContent = "";
+  $("checkBtn").textContent = "Проверить";
+  $("checkBtn").disabled = false;
+  $("dots").innerHTML = l.tasks.map((_,i)=>`<span class="dot ${i<idx?"ok":i===idx?"now":""}"></span>`).join("");
+  const area=$("answerArea");
+  if(t.type==="choice"){
+    area.innerHTML = `<div class="choices">${t.options.map(o=>`<button class="choice" data-value="${o}">${o}</button>`).join("")}</div>`;
+  } else {
+    area.innerHTML = `<input type="text" id="answerInput" autocomplete="off" spellcheck="false" placeholder="Напиши ответ">`;
+  }
+  const existing=$("hintbox"); if(existing) existing.remove();
+}
+$("answerArea").addEventListener("click", e=>{
+  const c=e.target.closest(".choice"); if(!c) return;
+  document.querySelectorAll(".choice").forEach(b=>b.classList.remove("selected"));
+  c.classList.add("selected");
+  selected=c.dataset.value;
+});
+$("answerArea").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){ e.preventDefault(); check(); }
+});
+document.addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !$("lesson").classList.contains("hidden") && e.target.tagName!=="INPUT" && e.target.tagName!=="BUTTON") check();
+});
+
+function check(){
+  if(locked){ next(); return; }
+  const t=lessons[cur].tasks[idx];
+  let ok=false;
+  if(t.type==="choice"){
+    ok = selected !== null && norm(selected)===norm(t.answer);
+  } else {
+    const raw=$("answerInput")?.value || "";
+    const accepted=Array.isArray(t.answer)?t.answer:[t.answer];
+    ok = matches(raw, accepted);
+  }
+  const fb=$("feedback");
+  if(ok){
+    correct++; locked=true;
+    fb.className="feedback good";
+    fb.textContent="✅ Верно! Молодец!";
+    const ex=document.createElement("div");
+    ex.className="explain";
+    ex.textContent="💡 " + t.explain;
+    fb.after(ex);
+    $("checkBtn").textContent = idx===lessons[cur].tasks.length-1 ? "Посмотреть результат →" : "Дальше →";
+    const inp=$("answerInput"); if(inp) inp.disabled=true;
+    document.querySelectorAll(".choice").forEach(b=>b.disabled=true);
+  } else {
+    fb.className="feedback bad";
+    fb.textContent="❌ Пока нет. Попробуй ещё раз — или открой подсказку 👇";
+    const h=$("hintBtn"); h.style.animation="none"; void h.offsetWidth; h.style.animation="pulse .6s";
+  }
+}
+$("hintBtn").addEventListener("click", ()=>{
+  if($("hintbox")) return;
+  const box=document.createElement("div");
+  box.id="hintbox"; box.className="hintbox";
+  box.textContent="💡 Подсказка: " + lessons[cur].tasks[idx].hint;
+  $("feedback").after(box);
+});
+$("checkBtn").addEventListener("click", check);
+$("backBtn").addEventListener("click", ()=>{ stopTimer(); renderHome(); show("home"); });
+
+function next(){
+  document.querySelectorAll(".explain").forEach(e=>e.remove());
+  const h=$("hintbox"); if(h) h.remove();
+  if(idx < lessons[cur].tasks.length-1){ idx++; renderTask(); }
+  else finish();
+}
+function finish(){
+  stopTimer();
+  const l=lessons[cur];
+  const old=progress[l.id]||{stars:0,done:false,time:null};
+  progress[l.id]={done:true, stars:Math.max(old.stars||0,correct), time:old.time||Math.round((Date.now()-(deadline-10*60*1000))/1000)};
+  save();
+  const totalStars=lessons.reduce((s,x)=>s+starsOf(x),0);
+  const allDone=lessons.every(isDone);
+  $("resultIcon").textContent = allDone ? "🎉" : "🏆";
+  $("resultTitle").textContent = allDone ? "Все 10 уроков пройдены!" : "Урок пройден!";
+  $("resultStars").textContent = "⭐".repeat(correct) + "☆".repeat(l.tasks.length-correct);
+  $("resultText").textContent = correct===l.tasks.length
+    ? "Идеально! Все задания решены верно. Так держать!"
+    : "Отличная работа! Можно пройти урок ещё раз и собрать все звёзды.";
+  const secs=progress[l.id].time;
+  $("resultStats").innerHTML = `<div><b>${correct}/${l.tasks.length}</b>верных ответов</div>
+    <div><b>${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</b>время</div>
+    <div><b>${totalStars}</b>звёзд всего</div>`;
+  $("nextLessonBtn").textContent = allDone ? "Начать сначала ↻" : "Следующий урок →";
+  show("result");
+  if(correct===l.tasks.length) confetti();
+}
+$("homeBtn").addEventListener("click", ()=>{ renderHome(); show("home"); });
+$("nextLessonBtn").addEventListener("click", ()=>{
+  const allDone=lessons.every(isDone);
+  if(allDone){ startLesson(0); return; }
+  let n=cur+1; while(n<lessons.length && isDone(lessons[n])) n++;
+  startLesson(n<lessons.length?n:0);
+});
+
+function confetti(){
+  const box=document.createElement("div"); box.className="confetti";
+  const colors=["#8b5cf6","#f59e0b","#18a874","#e0526b","#2f80ed"];
+  for(let i=0;i<36;i++){
+    const p=document.createElement("i");
+    p.style.left=Math.random()*100+"%";
+    p.style.background=colors[i%colors.length];
+    p.style.animationDelay=(Math.random()*.5)+"s";
+    p.style.animationDuration=(1.8+Math.random()*1.2)+"s";
+    box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(),3500);
+}
+
+const style=document.createElement("style");
+style.textContent="@keyframes pulse{50%{transform:scale(1.12)}}";
+document.head.appendChild(style);
+
+renderHome();
+</script>
+</body>
+</html>

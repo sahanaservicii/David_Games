@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#6c4ce0">
+  <title>ИгроЛаборатория — создай свою игру!</title>
+  <link rel="stylesheet" href="styles.css?v=13">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">🎮</div>
+        <div class="brand-text">
+          <h1>ИгроЛаборатория</h1>
+          <p>Создай игру мечты всего за 5 минут</p>
+        </div>
+      </div>
+      <nav class="top-actions" aria-label="Главное меню">
+        <button class="btn btn-ghost" id="btnMyGames">📁 Мои игры</button>
+        <button class="btn btn-ghost" id="btnGallery">🌟 Галерея</button>
+        <button class="btn btn-ghost" id="btnImport">📥 Загрузить</button>
+        <button class="btn btn-ghost" id="btnHelp">❓ Помощь</button>
+        <button class="btn btn-primary" id="btnSave">💾 Сохранить</button>
+        <button class="btn btn-accent" id="btnShare">🚀 Поделиться</button>
+      </nav>
+    </header>
+
+    <main class="main">
+      <!-- ================= ГАЛЕРЕЯ ================= -->
+      <section id="screenGallery" class="screen is-active">
+        <div class="hero">
+          <div class="hero-content">
+            <span class="badge hero-badge">👧 Для детей 9–12 лет · без кода</span>
+            <h2>Придумай игру — <span>и сделай её сам!</span></h2>
+            <p>Выбери готовый шаблон, настрой героев, уровни и правила. Всё на русском языке, а результат можно сохранить и показать друзьям.</p>
+            <div class="hero-buttons">
+              <button class="btn btn-hero" id="btnStart">🎲 Выбрать шаблон</button>
+              <button class="btn btn-hero-ghost" id="btnHelpHero">📖 Как это работает?</button>
+            </div>
+            <div class="hero-stats">
+              <span>⭐ 12 шаблонов</span><span>🎨 100% русский интерфейс</span><span>🎤 Голосовое управление</span><span>💾 Автосохранение</span>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="art-cloud art-cloud-1">☁️</div>
+            <div class="art-cloud art-cloud-2">☁️</div>
+            <div class="art-star art-star-1">⭐</div>
+            <div class="art-star art-star-2">✨</div>
+            <div class="art-window">
+              <div class="art-window-bar"><i></i><i></i><i></i></div>
+              <div class="art-screen">🚀<span>⭐</span>👾</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <div><h3>🎲 Выбери шаблон</h3><p>Нажми «Создать игру» — и редактор откроется сразу готовым к работе</p></div>
+        </div>
+        <div id="templateCards" class="cards"></div>
+
+        <div class="section-head saved-head">
+          <div><h3>🌟 Галерея игр</h3><p>Игры, опубликованные на этом устройстве. Можно добавить игру по ссылке друга</p></div>
+          <button class="btn btn-small btn-ghost" id="btnAddShared">📥 Добавить по ссылке</button>
+        </div>
+        <div id="publishedCards" class="cards"></div>
+
+        <div class="section-head saved-head">
+          <div><h3>💾 Мои сохранённые игры</h3><p>Все игры хранятся в этом браузере и не теряются</p></div>
+          <button class="btn btn-small btn-ghost" id="btnRefreshSaved">🔄 Обновить</button>
+        </div>
+        <div id="savedCards" class="cards"></div>
+      </section>
+
+      <!-- ================= РЕДАКТОР ================= -->
+      <section id="screenEditor" class="screen">
+        <div class="editor-topbar">
+          <button class="btn btn-ghost" id="btnBack">← К шаблонам</button>
+          <div class="project-title">
+            <span id="tplBadge" class="badge small">🎮 Шаблон</span>
+            <input id="projectName" maxlength="40" aria-label="Название игры" spellcheck="false">
+          </div>
+          <div class="editor-top-actions">
+            <span id="saveStatus" class="save-status">● Всё сохранено</span>
+            <button class="btn btn-primary" id="btnMode">▶ Играть</button>
+          </div>
+        </div>
+
+        <div id="editorGrid" class="editor-grid">
+          <aside class="panel tools-panel">
+            <div id="toolsPanel"></div>
+          </aside>
+
+          <div class="workspace">
+            <div class="canvas-head">
+              <div>
+                <strong id="canvasTitle">Редактор уровня</strong>
+                <span id="canvasSubtitle">Нажимай на клетки, чтобы расставлять объекты</span>
+              </div>
+              <div class="canvas-chips">
+                <span class="chip" id="chipObjects">🪐 объектов: 0</span>
+                <span class="chip" id="chipMode">✏️ Режим: редактор</span>
+                <span class="chip" id="voiceChip">🎤 микрофон выключен</span>
+              </div>
+            </div>
+            <div class="canvas-wrap">
+              <canvas id="gameCanvas" width="800" height="448" aria-label="Поле игры"></canvas>
+              <div id="playHud" class="play-hud hidden"></div>
+              <div id="interactiveLayer" class="interactive-layer"></div>
+              <div id="resultOverlay" class="result-overlay hidden"></div>
+            </div>
+            <div class="hint-bar">
+              <span id="hintText">💡 Подсказка: выбери инструмент слева и кликай по полю.</span>
+              <button class="btn btn-small btn-ghost" id="btnSpeakHint">🔊 Рассказать правила</button>
+            </div>
+          </div>
+
+          <aside class="panel props-panel">
+            <div id="propsPanel"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">Сделано с заботой о маленьких изобретателях 💜 · ИгроЛаборатория</footer>
+  </div>
+
+  <div id="modalRoot" class="modal-root"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+
+  <script src="app.js?v=13"></script>
+</body>
+</html>
