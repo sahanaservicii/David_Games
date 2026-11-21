@@ -369,6 +369,36 @@ input[type="color"] { width: 44px; height: 40px; padding: 2px; border: 2px solid
 }
 .touch-action-icon { font-size: 30px; line-height: 1; }
 .touch-action-label { font-size: 10px; font-weight: 900; }
+
+/* ---------- Полный экран ---------- */
+.game-stage { position: relative; width: 100%; }
+.fs-exit {
+  display: none; position: absolute; top: 10px; right: 10px; z-index: 60;
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35);
+  background: rgba(15,14,42,.72); color: #fff; font-size: 20px; font-weight: 900;
+  align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px);
+}
+#gameStage:fullscreen,
+#gameStage.fake-fullscreen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; width: 100vw; height: 100vh; height: 100dvh; padding: 12px;
+  background: #14132e; box-sizing: border-box; overflow: hidden;
+}
+#gameStage.fake-fullscreen { position: fixed; inset: 0; z-index: 1000; }
+#gameStage:fullscreen .fs-exit,
+#gameStage.fake-fullscreen .fs-exit { display: flex; }
+#gameStage:fullscreen .canvas-wrap,
+#gameStage.fake-fullscreen .canvas-wrap {
+  flex: 0 1 auto; width: auto; max-width: 100%; height: auto;
+  max-height: calc(100% - 140px); aspect-ratio: 800 / 448; margin: 0;
+}
+#gameStage:fullscreen:not(:has(#touchControls:not(.hidden))) .canvas-wrap,
+#gameStage.fake-fullscreen:not(:has(#touchControls:not(.hidden))) .canvas-wrap { max-height: 100%; }
+#gameStage:fullscreen .touch-controls,
+#gameStage.fake-fullscreen .touch-controls {
+  flex: none; width: min(100%, 520px); margin: 0 auto;
+  background: rgba(255,255,255,.94);
+}
 @media (max-width: 560px) {
   .touch-controls { padding: 10px 8px; gap: 8px; }
   .touch-pad { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 46px); gap: 5px; }

@@ -141,6 +141,61 @@ function bindTouchControls() {
     btn.addEventListener('contextmenu', e => e.preventDefault());
   });
 }
+/* ---------- Полный экран ---------- */
+function isFullscreen() {
+  const stage = $('#gameStage');
+  return !!stage && (document.fullscreenElement === stage || stage.classList.contains('fake-fullscreen'));
+}
+function syncFullscreenUI() {
+  const stage = $('#gameStage');
+  if (stage && document.fullscreenElement === stage) stage.classList.remove('fake-fullscreen');
+  const active = isFullscreen();
+  document.body.classList.toggle('fullscreen-mode', active);
+  const btn = $('#btnFullscreen');
+  if (btn) btn.textContent = active ? '✕ Выйти' : '⛶ На весь экран';
+}
+function exitFullscreen() {
+  const stage = $('#gameStage');
+  if (!stage) return;
+  delete stage.dataset.fsToken;
+  if (document.fullscreenElement === stage) {
+    document.exitFullscreen().catch(() => {});
+  }
+  stage.classList.remove('fake-fullscreen');
+  syncFullscreenUI();
+}
+function toggleFullscreen() {
+  if (!state.project || state.mode !== 'play') return;
+  if (isFullscreen()) { exitFullscreen(); return; }
+  const stage = $('#gameStage');
+  if (!stage) return;
+  const token = String(Date.now()) + Math.random();
+  stage.dataset.fsToken = token;
+  const fallback = () => {
+    if (stage.dataset.fsToken !== token) return;
+    delete stage.dataset.fsToken;
+    stage.classList.add('fake-fullscreen');
+    syncFullscreenUI();
+  };
+  // Если браузер не включил настоящий полный экран, используем режим «на весь окно»
+  setTimeout(() => {
+    if (stage.dataset.fsToken !== token) return;
+    if (!document.fullscreenElement) fallback();
+  }, 1200);
+  if (stage.requestFullscreen) {
+    try {
+      const result = stage.requestFullscreen();
+      if (result && typeof result.then === 'function') {
+        result.then(() => { delete stage.dataset.fsToken; syncFullscreenUI(); }).catch(fallback);
+      } else {
+        delete stage.dataset.fsToken;
+        syncFullscreenUI();
+      }
+    } catch (err) { fallback(); }
+  } else {
+    fallback();
+  }
+}
 const Voice = {
   rec: null,
   active: false,
@@ -2077,6 +2132,8 @@ function setMode(mode) {
   $('#editorGrid').classList.toggle('playing', playing);
   $('#btnMode').textContent = playing ? '✏️ В редактор' : '▶ Играть';
   $('#btnMode').className = playing ? 'btn btn-accent' : 'btn btn-primary';
+  $('#btnFullscreen').classList.toggle('hidden', !playing);
+  if (!playing && isFullscreen()) exitFullscreen();
   $('#playHud').classList.toggle('hidden', !playing);
   $('#resultOverlay').classList.add('hidden');
   for (const k in keys) keys[k] = false;
@@ -2474,7 +2531,7 @@ function openHelp() {
       <li><b>Выбери шаблон</b>: платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память или математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
       <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
-      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух.</li>
+      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим.</li>
       <li><b>Сохрани или поделись</b>: «💾 Сохранить» — в браузере, «🌟 В галерею» — на общей странице, «🚀 Поделиться» — ссылка другу.</li>
     </ol>
     <p class="modal-sub">📱 На телефоне во время игры под полем появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. Игры с выбором ответа работают простым касанием по экрану.</p>
@@ -2556,6 +2613,10 @@ function cellFromEvent(e) {
 function bindEvents() {
   bindTouchControls();
   window.addEventListener('resize', updateTouchControls);
+  document.addEventListener('fullscreenchange', syncFullscreenUI);
+  document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
+  $('#btnFullscreen').addEventListener('click', toggleFullscreen);
+  $('#btnExitFullscreen').addEventListener('click', toggleFullscreen);
   $('#templateCards').addEventListener('click', e => {
     const b = e.target.closest('[data-create]');
     if (!b) return;
@@ -2882,7 +2943,10 @@ function bindEvents() {
     if (state.mode === 'play' && ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (!keys[e.code]) pressed[e.code] = true;
     keys[e.code] = true;
-    if (e.code === 'Escape' && state.mode === 'play') setMode('edit');
+    if (e.code === 'Escape') {
+      if (isFullscreen()) exitFullscreen();
+      else if (state.mode === 'play') setMode('edit');
+    }
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
