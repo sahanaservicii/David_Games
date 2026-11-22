@@ -16,10 +16,11 @@ const keys = Object.create(null);
 const pressed = Object.create(null);
 
 const DIFF = {
-  easy:   { speed: 0.82, traffic: 0.7, time: 90, label: 'Лёгкая' },
-  normal: { speed: 1.0,  traffic: 1.0, time: 60, label: 'Средняя' },
-  hard:   { speed: 1.28, traffic: 1.4, time: 40, label: 'Трудная' }
+  easy:   { speed: 0.92, traffic: 0.85, time: 78, quizTime: 18, label: 'Лёгкая' },
+  normal: { speed: 1.18, traffic: 1.25, time: 48, quizTime: 13, label: 'Средняя' },
+  hard:   { speed: 1.48, traffic: 1.75, time: 32, quizTime: 9,  label: 'Трудная' }
 };
+function diffOf(p) { return DIFF[(p && p.settings && p.settings.difficulty) || 'normal'] || DIFF.normal; }
 /* Новые жанры: по 3 игры в каждом */
 const SHOOTER_IDS = ['starraid', 'tank', 'range'];
 const ARCADE_IDS  = ['whack', 'runner', 'reaction'];
@@ -571,7 +572,7 @@ const TEMPLATES = {
     tag: 'Стратегия', desc: 'Строй башни на траве и не подпускай врагов к замку. Продумай, где поставить защиту!',
     features: ['Постройка башен', 'Волги врагов', 'Ограниченный бюджет'],
     canvasTitle: 'Настройка защиты', canvasSubtitle: 'Настрой жизни замка, бюджет и сколько врагов отразить',
-    hint: '💡 Кликай по траве, чтобы построить башню за 10 монет. Башни сами стреляют по врагам.'
+    hint: '💡 Кликай по траве, чтобы построить башню за 14 монет. Башни сами стреляют по врагам.'
   },
   farm: {
     id: 'farm', title: 'Умная ферма', emoji: '🌾', color: '#eaf7df',
@@ -829,7 +830,10 @@ function defaultQuestions() {
     { text: 'Как называется наша галактика?', answers: ['Млечный Путь', 'Андромеда', 'Треугольник', 'Орион'], correct: 0 },
     { text: 'Какое животное умеет менять цвет?', answers: ['Лев', 'Хамелеон', 'Слон', 'Пингвин'], correct: 1 },
     { text: 'Сколько цветов в радуге?', answers: ['5', '6', '7', '8'], correct: 2 },
-    { text: 'Что вырастает из желудя?', answers: ['Яблоня', 'Дуб', 'Берёза', 'Сосна'], correct: 1 }
+    { text: 'Что вырастает из желудя?', answers: ['Яблоня', 'Дуб', 'Берёза', 'Сосна'], correct: 1 },
+    { text: 'Чему равно 7 × 8?', answers: ['48', '54', '56', '64'], correct: 2 },
+    { text: 'Какой океан самый большой?', answers: ['Атлантический', 'Тихий', 'Индийский', 'Северный Ледовитый'], correct: 1 },
+    { text: 'Сколько минут в трёх часах?', answers: ['120', '150', '180', '240'], correct: 2 }
   ];
 }
 
@@ -847,7 +851,7 @@ function createProject(templateId) {
       hero: '🚀',
       difficulty: 'normal',
       speed: 1,
-      lives: 3,
+      lives: 2,
       sound: true,
       road: '#3b3f52',
       car: '🚗',
@@ -859,17 +863,17 @@ function createProject(templateId) {
   };
   const extras = {
     snake:     { snakeColor: '#38c172', food: '🍎' },
-    pong:      { paddle: '#5ac8fa', target: 5 },
-    arkanoid:  { rows: 4, paddleColor: '#ffd166' },
+    pong:      { paddle: '#5ac8fa', target: 7 },
+    arkanoid:  { rows: 5, paddleColor: '#ffd166' },
     shooter:   { ship: '🚀', fireRate: 1 },
     tank:      { layout: 1 },
-    tictactoe: { smart: 'normal', first: true, mark: '❌' },
-    memory:    { pairs: 6, deck: 'animals' },
-    math:      { ops: ['+', '-'], count: 8, seconds: 12 }
+    tictactoe: { smart: 'hard', first: false, mark: '❌' },
+    memory:    { pairs: 10, deck: 'animals' },
+    math:      { ops: ['+', '-'], count: 12, seconds: 10 }
   };
   if (extras[templateId]) Object.assign(p.settings, extras[templateId]);
   if (GENRE_IDS.includes(templateId)) {
-    Object.assign(p.settings, { speed: 1, lives: 3, count: 10, seconds: 60, target: 10, hero: '🚀' });
+    Object.assign(p.settings, { speed: 1, lives: 2, count: 10, seconds: 60, target: 10, hero: '🚀' });
   }
   if (templateId === 'platformer') p.level = defaultPlatformerLevel();
   if (templateId === 'collector') p.level = defaultCollectorLevel();
@@ -1092,7 +1096,7 @@ class PlatformerEngine extends GridEngine {
       for (let x = 0; x < COLS; x++) {
         if (this.grid[y][x] === 'star') this.stars.push({ x, y, got: false });
         if (this.grid[y][x] === 'enemy') {
-          this.enemies.push({ x: x * CELL + 2, y: y * CELL + 4, w: 28, h: 28, vx: (Math.random() < .5 ? -1 : 1) * 70 });
+          this.enemies.push({ x: x * CELL + 2, y: y * CELL + 4, w: 28, h: 28, vx: (Math.random() < .5 ? -1 : 1) * 92 });
         }
       }
     }
@@ -1110,11 +1114,11 @@ class PlatformerEngine extends GridEngine {
     else h.vx = 0;
 
     if ((pressed.Space || pressed.ArrowUp || pressed.KeyW) && h.onGround) {
-      h.vy = -560;
+      h.vy = -600;
       h.onGround = false;
       beep(680, .07);
     }
-    h.vy = Math.min(h.vy + 1500 * dt, 900);
+    h.vy = Math.min(h.vy + 1650 * dt, 900);
     h.onGround = false;
     this.resolveAxis(h, 'x', h.vx * dt, true);
     this.resolveAxis(h, 'y', h.vy * dt, true);
@@ -1122,13 +1126,13 @@ class PlatformerEngine extends GridEngine {
     if (h.x + h.w > W) h.x = W - h.w;
 
     for (const e of this.enemies) {
-      const step = e.vx * dt * s.speed;
+      const step = e.vx * dt * s.speed * diff.speed;
       const ahead = Math.floor((e.x + (step > 0 ? e.w + 2 : -2)) / CELL);
       const ownRow = Math.floor((e.y + e.h / 2) / CELL);
       const below = Math.floor((e.y + e.h + 4) / CELL);
       const noFloor = below >= ROWS || this.grid[below][ahead] !== 'wall';
       if (noFloor || this.isSolid(ahead, ownRow, false) || e.x + step < 0 || e.x + step + e.w > W) e.vx *= -1;
-      e.x += e.vx * dt * s.speed;
+      e.x += e.vx * dt * s.speed * diff.speed;
     }
 
     this.invuln = Math.max(0, this.invuln - dt);
@@ -1170,7 +1174,7 @@ class PlatformerEngine extends GridEngine {
   }
   hurt() {
     this.hearts--;
-    this.invuln = 1.2;
+    this.invuln = 0.9;
     beep(220, .16);
     if (this.hearts <= 0) {
       this.finish(false, 'У героя закончились жизни. Но ты почти справился(ась)!');
@@ -1211,7 +1215,7 @@ class CollectorEngine extends GridEngine {
         if (this.grid[y][x] === 'enemy') {
           this.enemies.push({
             x: x * CELL + 3, y: y * CELL + 3, w: 26, h: 26,
-            dir: Math.floor(Math.random() * 4), timer: rand(0.8, 2)
+            dir: Math.floor(Math.random() * 4), timer: rand(0.5, 1.3)
           });
         }
       }
@@ -1225,8 +1229,8 @@ class CollectorEngine extends GridEngine {
   }
   update(dt) {
     if (this.finished) return;
-    const s = this.p.settings;
-    const spd = 205 * s.speed;
+    const s = this.p.settings, ed = diffOf(this.p);
+    const spd = 205 * s.speed * ed.speed;
     let dx = 0, dy = 0;
     if (keys.ArrowLeft || keys.KeyA) dx = -1;
     if (keys.ArrowRight || keys.KeyD) dx = 1;
@@ -1239,12 +1243,12 @@ class CollectorEngine extends GridEngine {
     const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
     for (const e of this.enemies) {
       e.timer -= dt;
-      if (e.timer <= 0) { e.dir = Math.floor(Math.random() * 4); e.timer = rand(0.9, 2.2); }
+      if (e.timer <= 0) { e.dir = Math.floor(Math.random() * 4); e.timer = rand(0.5, 1.2); }
       const [mx, my] = dirs[e.dir];
       const ox = e.x, oy = e.y;
-      this.resolveAxis(e, 'x', mx * 62 * s.speed * dt);
-      this.resolveAxis(e, 'y', my * 62 * s.speed * dt);
-      if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) { e.dir = (e.dir + 1) % 4; e.timer = rand(0.6, 1.4); }
+      this.resolveAxis(e, 'x', mx * 88 * ed.speed * s.speed * dt);
+      this.resolveAxis(e, 'y', my * 88 * ed.speed * s.speed * dt);
+      if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) { e.dir = (e.dir + 1) % 4; e.timer = rand(0.3, 0.8); }
     }
 
     this.invuln = Math.max(0, this.invuln - dt);
@@ -1285,7 +1289,7 @@ class CollectorEngine extends GridEngine {
   }
   hurt() {
     this.hearts--;
-    this.invuln = 1.2;
+    this.invuln = 0.9;
     beep(220, .16);
     if (this.hearts <= 0) { this.finish(false, 'У героя закончились жизни'); return; }
     this.hero.x = this.start.cx * CELL + 3;
@@ -1346,9 +1350,9 @@ class RacerEngine extends BaseEngine {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnCar();
-      this.spawnTimer = rand(0.75, 1.35) / (diff.traffic * s.traffic) / s.speed;
+      this.spawnTimer = rand(0.55, 1.05) / (diff.traffic * s.traffic) / s.speed;
     }
-    const roadSpeed = (255 + this.dist * 0.35) * s.speed * diff.speed;
+    const roadSpeed = (290 + this.dist * 0.48) * s.speed * diff.speed;
     for (const c of this.cars) c.y += roadSpeed * dt;
     this.cars = this.cars.filter(c => c.y < H + 100);
     this.dist += roadSpeed * dt / 10;
@@ -1361,7 +1365,7 @@ class RacerEngine extends BaseEngine {
         const box = { x: c.x + 6, y: c.y + 6, w: c.w - 12, h: c.h - 12 };
         if (aabb(this.player, box)) {
           this.hearts--;
-          this.invuln = 1.3;
+          this.invuln = 1.0;
           beep(190, .18);
           c.y = H + 200;
           if (this.hearts <= 0) this.finish(false, `Пробег: ${this.score} м. Ещё раз — и получится лучше!`);
@@ -1416,16 +1420,17 @@ class RacerEngine extends BaseEngine {
 }
 
 class QuizEngine extends BaseEngine {
-  constructor(p, layer) { super(p); this.layer = layer; this.timer = null; this.questions = []; }
+  constructor(p, layer) { super(p); this.layer = layer; this.timer = null; this.timeout = null; this.qTime = 12; this.qLeft = 12; this.questions = []; }
   reset() {
-    clearTimeout(this.timer);
+    clearTimeout(this.timer); clearTimeout(this.timeout);
     this.layer.innerHTML = '';
+    this.qTime = diffOf(this.p).quizTime; this.qLeft = this.qTime;
     this.index = 0; this.score = 0; this.answered = false; this.finished = false;
     this.questions = this.p.questions.filter(q => q.text.trim() && q.answers.some(a => a.trim()));
   }
   setPlaying(on) {
     this.layer.classList.toggle('active', on);
-    if (!on) { this.layer.innerHTML = ''; return; }
+    if (!on) { clearTimeout(this.timeout); clearTimeout(this.timer); this.timer = null; this.timeout = null; this.layer.innerHTML = ''; return; }
     if (!this.questions.length) {
       this.layer.innerHTML = `<div class="quiz-card">
         <div class="quiz-question">❓ Пока нет вопросов</div>
@@ -1442,6 +1447,9 @@ class QuizEngine extends BaseEngine {
       return;
     }
     const q = this.questions[this.index];
+    this.qLeft = this.qTime;
+    clearTimeout(this.timeout);
+    this.timeout = setTimeout(() => { if (!this.answered && !this.finished) this.choose(-1); }, this.qTime * 1000);
     this.layer.innerHTML = `
       <div class="quiz-card">
         <div class="quiz-top">
@@ -1460,6 +1468,7 @@ class QuizEngine extends BaseEngine {
   choose(i) {
     if (this.answered || this.finished) return;
     const q = this.questions[this.index];
+    clearTimeout(this.timeout);
     const ok = i === q.correct;
     this.answered = true;
     if (ok) { this.score += 10; beep(880, .1); } else beep(210, .16);
@@ -1476,9 +1485,12 @@ class QuizEngine extends BaseEngine {
       this.index++;
       this.answered = false;
       this.renderQuestion();
-    }, 1400);
+    }, 950);
   }
-  update() {}
+  update(dt) {
+    if (this.finished || this.answered || state.mode !== 'play') return;
+    this.qLeft = Math.max(0, this.qLeft - dt);
+  }
   draw(ctx) {
     drawBackdrop(ctx, this.p, { accent: '#ffd166', motif: 'question' });
     ctx.save();
@@ -1502,15 +1514,16 @@ class QuizEngine extends BaseEngine {
   }
   getHud() {
     return `<span class="hud-pill">⭐ ${this.score}</span>` +
-           `<span class="hud-pill">Вопрос ${Math.min(this.index + 1, this.questions.length)}/${this.questions.length}</span>`;
+           `<span class="hud-pill">Вопрос ${Math.min(this.index + 1, this.questions.length)}/${this.questions.length}</span>` +
+           `<span class="hud-pill">⏱ ${Math.ceil(this.qLeft)} с</span>`;
   }
-  destroy() { clearTimeout(this.timer); this.layer.innerHTML = ''; this.layer.classList.remove('active'); }
+  destroy() { clearTimeout(this.timer); clearTimeout(this.timeout); this.layer.innerHTML = ''; this.layer.classList.remove('active'); }
 }
 
 class CatcherEngine extends BaseEngine {
   constructor(p) { super(p); this.reset(); }
   reset() {
-    this.player = { x: W / 2 - 42, y: H - 58, w: 84, h: 44 };
+    this.player = { x: W / 2 - 36, y: H - 58, w: 72, h: 44 };
     this.items = [];
     this.spawnTimer = 0.5;
     this.score = 0;
@@ -1529,11 +1542,11 @@ class CatcherEngine extends BaseEngine {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       const r = Math.random();
-      const type = r < 0.68 ? 'apple' : (r < 0.87 ? 'bomb' : 'star');
+      const type = r < 0.58 ? 'apple' : (r < 0.86 ? 'bomb' : 'star');
       this.items.push({ x: rand(45, W - 45), y: -34, w: 30, h: 30, type, vy: rand(0, 60) });
-      this.spawnTimer = rand(0.55, 1.05) / (diff.traffic * s.traffic);
+      this.spawnTimer = rand(0.42, 0.85) / (diff.traffic * s.traffic);
     }
-    const fall = (165 + this.time * 1.5) * s.speed * diff.speed;
+    const fall = (195 + this.time * 2.4) * s.speed * diff.speed;
     for (const it of this.items) {
       it.y += (fall + it.vy) * dt;
       const box = { x: it.x + 4, y: it.y + 4, w: it.w - 8, h: it.h - 8 };
@@ -1610,14 +1623,14 @@ class ArcadeEngine extends BaseEngine {
 
 class SnakeEngine extends ArcadeEngine {
   reset() {
-    this.cols = 28; this.rows = 16; this.cell = 28;
+    this.cols = 32; this.rows = 16; this.cell = 24;
     this.ox = Math.floor((W - this.cols * this.cell) / 2);
     this.oy = Math.floor((H - this.rows * this.cell) / 2);
     this.snake = [{ x: 7, y: 8 }, { x: 6, y: 8 }, { x: 5, y: 8 }];
     this.dir = { x: 1, y: 0 }; this.nextDir = { x: 1, y: 0 };
     this.score = 0; this.lives = this.p.settings.lives || 3;
     this.acc = 0; this.finished = false;
-    this.step = 0.15 / (this.p.settings.speed || 1);
+    this.step = 0.15 / ((this.p.settings.speed || 1) * diffOf(this.p).speed);
     this.placeFood();
   }
   placeFood() {
@@ -1681,10 +1694,10 @@ class SnakeEngine extends ArcadeEngine {
       ctx.fill();
       if (i === 0) {
         ctx.fillStyle = '#232246';
-        const ex = this.ox + seg.x * this.cell + (this.dir.x > 0 ? 19 : 9);
-        const ey = this.oy + seg.y * this.cell + (this.dir.y > 0 ? 19 : 9);
-        ctx.beginPath(); ctx.arc(ex, this.oy + seg.y * this.cell + 11, 2.2, 0, 7); ctx.fill();
-        ctx.beginPath(); ctx.arc(this.ox + seg.x * this.cell + 11, ey, 2.2, 0, 7); ctx.fill();
+        const ex = this.ox + seg.x * this.cell + (this.dir.x > 0 ? 16 : 8);
+        const ey = this.oy + seg.y * this.cell + (this.dir.y > 0 ? 16 : 8);
+        ctx.beginPath(); ctx.arc(ex, this.oy + seg.y * this.cell + 9, 2.2, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(this.ox + seg.x * this.cell + 9, ey, 2.2, 0, 7); ctx.fill();
       }
     });
     if (state.mode === 'edit') drawEditCard(ctx, '🐍', 'Настрой свою змейку', 'Нажми «Играть», чтобы начать. Стрелки или WASD — движение');
@@ -1699,25 +1712,25 @@ class SnakeEngine extends ArcadeEngine {
 class PongEngine extends ArcadeEngine {
   reset() {
     const s = this.p.settings;
-    this.target = clamp(+s.target || 5, 1, 15);
-    this.pw = { x: 34, y: H / 2 - 40, w: 14, h: 80 };
-    this.aw = { x: W - 48, y: H / 2 - 40, w: 14, h: 80 };
+    this.target = clamp(+s.target || 7, 1, 20);
+    this.pw = { x: 34, y: H / 2 - 34, w: 14, h: 68 };
+    this.aw = { x: W - 48, y: H / 2 - 34, w: 14, h: 68 };
     this.scoreP = 0; this.scoreA = 0; this.finished = false;
     this.serve(Math.random() < .5 ? 1 : -1);
   }
   serve(dir) {
     const s = this.p.settings, diff = DIFF[s.difficulty] || DIFF.normal;
-    const sp = 320 * s.speed * diff.speed;
-    this.ball = { x: W / 2, y: H / 2, r: 9, vx: sp * (dir || 1) * .8, vy: rand(-sp * .45, sp * .45) };
+    const sp = 360 * s.speed * diff.speed;
+    this.ball = { x: W / 2, y: H / 2, r: 8, vx: sp * (dir || 1) * .8, vy: rand(-sp * .45, sp * .45) };
   }
   update(dt) {
     if (this.finished) return;
     const s = this.p.settings;
-    const mv = 440 * s.speed * dt;
+    const mv = 410 * s.speed * dt;
     if (keys.ArrowUp || keys.KeyW) this.pw.y -= mv;
     if (keys.ArrowDown || keys.KeyS) this.pw.y += mv;
     this.pw.y = clamp(this.pw.y, 8, H - 8 - this.pw.h);
-    const aiSp = (s.difficulty === 'easy' ? 180 : s.difficulty === 'hard' ? 440 : 300) * s.speed;
+    const aiSp = Math.round(380 * diffOf(this.p).speed * s.speed);
     const goal = this.ball.y - this.aw.h / 2;
     this.aw.y += clamp(goal - this.aw.y, -aiSp * dt, aiSp * dt);
     this.aw.y = clamp(this.aw.y, 8, H - 8 - this.aw.h);
@@ -1728,14 +1741,14 @@ class PongEngine extends ArcadeEngine {
     const box = { x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2 };
     if (aabb(box, this.pw) && b.vx < 0) {
       b.x = this.pw.x + this.pw.w + b.r;
-      b.vx = Math.min(Math.abs(b.vx) * 1.035, 760);
-      b.vy = ((b.y - (this.pw.y + this.pw.h / 2)) / (this.pw.h / 2)) * 390 * s.speed;
+      b.vx = Math.min(Math.abs(b.vx) * 1.05, 760);
+      b.vy = ((b.y - (this.pw.y + this.pw.h / 2)) / (this.pw.h / 2)) * 430 * s.speed;
       beep(640, .05);
     }
     if (aabb(box, this.aw) && b.vx > 0) {
       b.x = this.aw.x - b.r;
-      b.vx = -Math.min(Math.abs(b.vx) * 1.035, 760);
-      b.vy = ((b.y - (this.aw.y + this.aw.h / 2)) / (this.aw.h / 2)) * 390 * s.speed;
+      b.vx = -Math.min(Math.abs(b.vx) * 1.05, 760);
+      b.vy = ((b.y - (this.aw.y + this.aw.h / 2)) / (this.aw.h / 2)) * 430 * s.speed;
       beep(520, .05);
     }
     if (b.x + b.r < 0) { this.scoreA++; beep(230, .16); this.checkPoint(); }
@@ -1777,11 +1790,11 @@ class PongEngine extends ArcadeEngine {
 class ArkanoidEngine extends ArcadeEngine {
   reset() {
     const s = this.p.settings, diff = DIFF[s.difficulty] || DIFF.normal;
-    this.pad = { x: W / 2 - 60, y: H - 30, w: 120, h: 14 };
-    this.ball = { x: W / 2, y: H - 50, r: 7, vx: rand(-.5, .5) * 300, vy: -300 };
-    this.speed = 310 * s.speed * diff.speed;
+    this.pad = { x: W / 2 - 48, y: H - 30, w: 96, h: 14 };
+    this.ball = { x: W / 2, y: H - 50, r: 6, vx: rand(-.5, .5) * 300, vy: -300 };
+    this.speed = 370 * s.speed * diff.speed;
     this.score = 0; this.lives = s.lives || 3; this.stuck = true; this.finished = false;
-    const rows = clamp(+s.rows || 4, 2, 7), cols = 10, bw = 68, gap = 7;
+    const rows = clamp(+s.rows || 5, 2, 8), cols = 10, bw = 68, gap = 7;
     const bx = (W - (cols * bw + (cols - 1) * gap)) / 2;
     const palette = ['#ff6b81', '#ff9f43', '#ffd166', '#38c172', '#5ac8fa', '#c792ea', '#ff7eb6'];
     this.bricks = [];
@@ -1795,7 +1808,7 @@ class ArkanoidEngine extends ArcadeEngine {
   update(dt) {
     if (this.finished) return;
     const s = this.p.settings;
-    const mv = 460 * s.speed * dt;
+    const mv = 420 * s.speed * dt;
     if (keys.ArrowLeft || keys.KeyA) this.pad.x -= mv;
     if (keys.ArrowRight || keys.KeyD) this.pad.x += mv;
     this.pad.x = clamp(this.pad.x, 8, W - 8 - this.pad.w);
@@ -1821,7 +1834,7 @@ class ArkanoidEngine extends ArcadeEngine {
     if (b.vy > 0 && aabb(box, this.pad)) {
       b.y = this.pad.y - b.r;
       b.vy = -Math.abs(b.vy);
-      b.vx += ((b.x - (this.pad.x + this.pad.w / 2)) / (this.pad.w / 2)) * 130;
+      b.vx += ((b.x - (this.pad.x + this.pad.w / 2)) / (this.pad.w / 2)) * 150;
       beep(610, .05);
     }
     for (const br of this.bricks) {
@@ -1879,13 +1892,13 @@ class ShooterEngine extends ArcadeEngine {
       x: rand(0, W), y: rand(0, H), r: rand(.6, 1.9), sp: rand(25, 95)
     }));
     this.aliens = [];
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 7; c++) {
-        this.aliens.push({ x: 95 + c * 88, y: 54 + r * 54, w: 40, h: 36,
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 8; c++) {
+        this.aliens.push({ x: 80 + c * 88, y: 54 + r * 54, w: 40, h: 36,
           alive: true, em: r === 0 ? '👽' : '👾' });
       }
     }
-    this.alienSpeed = (s.difficulty === 'easy' ? 32 : s.difficulty === 'hard' ? 82 : 52) * s.speed * diff.speed;
+    this.alienSpeed = Math.round(95 * diffOf(this.p).speed * s.speed);
   }
   update(dt) {
     if (this.finished) return;
@@ -1897,7 +1910,7 @@ class ShooterEngine extends ArcadeEngine {
     this.fireCd -= dt;
     if (keys.Space && this.fireCd <= 0) {
       this.bullets.push({ x: this.ship.x + this.ship.w / 2, y: this.ship.y, r: 4 });
-      this.fireCd = 0.26 / (s.fireRate || 1);
+      this.fireCd = 0.32 / (s.fireRate || 1);
       beep(920, .04);
     }
     for (const st of this.stars) {
@@ -1910,7 +1923,7 @@ class ShooterEngine extends ArcadeEngine {
       if (a.x < 25 || a.x + a.w > W - 25) { this.dir *= -1; break; }
     }
     for (const a of alive) {
-      a.y += 7 * dt;
+      a.y += 12 * dt;
       if (a.y + a.h >= this.ship.y) {
         a.alive = false; this.lives--; beep(180, .2);
         if (this.lives <= 0) { this.finish(false, 'Пришельцы добрались до Земли! Следующий раз получится лучше.'); return; }
@@ -1923,7 +1936,7 @@ class ShooterEngine extends ArcadeEngine {
       for (const a of this.aliens) {
         if (!a.alive || !aabb(bbox, a)) continue;
         a.alive = false; b.y = -50; this.score += 20; beep(1050, .07);
-        if (Math.random() < .22) this.drops.push({ x: a.x + a.w / 2, y: a.y, w: 22, h: 22 });
+        if (Math.random() < .12) this.drops.push({ x: a.x + a.w / 2, y: a.y, w: 22, h: 22 });
         break;
       }
     }
@@ -1999,7 +2012,7 @@ class TicTacToeEngine extends ArcadeEngine {
       }
       if (this.checkEnd()) return;
       this.turn = 'human';
-    }, 420);
+    }, 280);
   }
   checkEnd() {
     const line = this.winner(this.board);
@@ -2029,7 +2042,7 @@ class TicTacToeEngine extends ArcadeEngine {
     const smart = this.p.settings.smart;
     const free = this.emptyCells(this.board);
     if (!free.length) return -1;
-    if (smart === 'easy' || Math.random() < .12) return free[Math.floor(rand(0, free.length))];
+    if (smart === 'easy' || (smart === 'normal' && Math.random() < .10)) return free[Math.floor(rand(0, free.length))];
     for (const mark of [this.ai, this.human]) {
       for (const i of free) {
         const copy = this.board.slice(); copy[i] = mark;
@@ -2090,18 +2103,18 @@ class TicTacToeEngine extends ArcadeEngine {
 class MemoryEngine extends ArcadeEngine {
   reset() {
     const s = this.p.settings;
-    this.pairs = clamp(+s.pairs || 6, 4, 10);
+    this.pairs = clamp(+s.pairs || 10, 4, 12);
     const sets = {
-      animals: ['🐶','🐱','🦊','🐻','🐼','🦁','🐸','🐵','🐯','🐷'],
-      food: ['🍎','🍌','🍇','🍓','🍒','🍉','🥕','🍕','🍔','🍩'],
-      space: ['🚀','🪐','⭐','🌙','☀️','🌍','🛸','👽','🌌','🔭']
+      animals: ['🐶','🐱','🦊','🐻','🐼','🦁','🐸','🐵','🐯','🐷','🦄','🐨'],
+      food: ['🍎','🍌','🍇','🍓','🍒','🍉','🥕','🍕','🍔','🍩','🍑','🥑'],
+      space: ['🚀','🪐','⭐','🌙','☀️','🌍','🛸','👽','🌌','🔭','☄️','🌠']
     };
     const emojis = (sets[s.deck] || sets.animals).slice(0, this.pairs);
     const deck = emojis.concat(emojis).sort(() => Math.random() - .5);
     this.cards = deck.map(em => ({ em, flipped: false, matched: false }));
     this.cols = this.pairs <= 6 ? 4 : 5;
     this.rows = Math.ceil(this.cards.length / this.cols);
-    this.cw = 88; this.ch = 88; this.gap = 10;
+    this.cw = 76; this.ch = 76; this.gap = 8;
     this.ox = (W - (this.cols * this.cw + (this.cols - 1) * this.gap)) / 2;
     this.oy = (H - (this.rows * this.ch + (this.rows - 1) * this.gap)) / 2;
     this.first = null; this.second = null; this.lock = false;
@@ -2147,7 +2160,7 @@ class MemoryEngine extends ArcadeEngine {
       roundRect(ctx, r.x, r.y, r.w, r.h, 12); ctx.fill();
       ctx.strokeStyle = c.matched ? '#38c172' : 'rgba(255,255,255,.35)';
       ctx.lineWidth = 2; ctx.stroke();
-      if (c.flipped || c.matched) drawEmoji(ctx, c.em, r.x + r.w / 2, r.y + r.h / 2, 48);
+      if (c.flipped || c.matched) drawEmoji(ctx, c.em, r.x + r.w / 2, r.y + r.h / 2, 40);
       else {
         ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.textAlign = 'center';
         ctx.font = 'bold 40px "Trebuchet MS", sans-serif';
@@ -2174,19 +2187,19 @@ class MathEngine extends ArcadeEngine {
     this.question = this.makeQuestion();
   }
   makeQuestion() {
-    const diff = this.p.settings.difficulty;
-    const max = diff === 'easy' ? 12 : diff === 'hard' ? 60 : 30;
+    const d = diffOf(this.p);
+    const max = Math.round(42 * d.speed);
     const op = this.ops[Math.floor(rand(0, this.ops.length))];
     let a = Math.floor(rand(1, max)) + 1;
-    let b = Math.floor(rand(1, Math.min(max, 12))) + 1;
+    let b = Math.floor(rand(1, Math.min(max, 20))) + 1;
     let sign = op, ans;
     if (op === '+') ans = a + b;
     else if (op === '-') { if (a < b) { const t = a; a = b; b = t; } ans = a - b; }
-    else if (op === '×') { b = Math.min(b, 9); ans = a * b; }
-    else { sign = ':'; ans = b; a = b * (Math.floor(rand(1, 6)) + 1); }
+    else if (op === '×') { b = Math.min(b, 12); ans = a * b; }
+    else { sign = ':'; ans = b; a = b * (Math.floor(rand(1, 12)) + 1); }
     const opts = new Set([ans]);
     while (opts.size < 4) {
-      const d = ans + Math.floor(rand(-7, 8));
+      const d = ans + Math.floor(rand(-3, 4));
       if (d >= 0) opts.add(d);
     }
     const options = Array.from(opts).sort(() => Math.random() - .5);
@@ -2321,18 +2334,18 @@ class StarRaidEngine extends GenreEngine {
     s.x = clamp(s.x, 26, W - 26); s.y = clamp(s.y, 120, H - 30);
     this.fire -= dt;
     if ((pressed.Space || keys.Space) && this.fire <= 0) {
-      this.bullets.push({ x: s.x, y: s.y - 22 }); this.fire = .16; beep(880, .04);
+      this.bullets.push({ x: s.x, y: s.y - 22 }); this.fire = .2; beep(880, .04);
     }
     for (const b of this.bullets) b.y -= 520 * dt;
     this.bullets = this.bullets.filter(b => b.y > -10);
     this.spawn -= dt;
     if (this.spawn <= 0) {
       this.foes.push({ x: rand(40, W - 40), y: -24, phase: rand(0, 6) });
-      this.spawn = rand(.7, 1.3) / this.dm.traffic;
+      this.spawn = rand(.5, 1.0) / this.dm.traffic;
     }
     for (const f of this.foes) {
-      f.y += 70 * this.spd * dt; f.phase += dt * 2;
-      f.x = clamp(f.x + Math.sin(f.phase) * 18 * dt, 24, W - 24);
+      f.y += 95 * this.spd * dt; f.phase += dt * 2;
+      f.x = clamp(f.x + Math.sin(f.phase) * 26 * dt, 24, W - 24);
       for (const b of this.bullets) {
         if (!b.dead && !f.dead && Math.hypot(b.x - f.x, b.y - f.y) < 24) {
           b.dead = true; f.dead = true; this.hits++; this.score += 10; beep(520, .07); break;
@@ -2366,10 +2379,10 @@ class BattleCityEngine extends GenreEngine {
     this.grid = this.buildGrid(this.p.settings.layout || 1);
     this.base = { x: 400, y: 432, alive: true };
     this.player = this.makeTank(304, 400, 'up', 'player');
-    this.player.inv = 1.2;
+    this.player.inv = 0.9;
     this.foes = []; this.bullets = [];
     this.spawn = .8; this.fire = 0;
-    this.maxFoes = 4;
+    this.maxFoes = 6;
   }
   buildGrid(layout) {
     const g = Array.from({ length: 14 }, () => Array(25).fill(0));
@@ -2406,8 +2419,8 @@ class BattleCityEngine extends GenreEngine {
   }
   makeTank(x, y, dir, kind) {
     return {
-      x, y, dir, kind, hp: kind === 'armored' ? 2 : 1,
-      speed: kind === 'fast' ? 108 : 74,
+      x, y, dir, kind, hp: kind === 'armored' ? 3 : 1,
+      speed: kind === 'fast' ? 125 : 78,
       cool: rand(.5, 1.3), turn: rand(.6, 1.4)
     };
   }
@@ -2440,7 +2453,7 @@ class BattleCityEngine extends GenreEngine {
   shoot(t, friend) {
     const [dx, dy] = this.dirVec(t.dir);
     this.bullets.push({ x: t.x + dx * 20, y: t.y + dy * 20,
-      vx: dx * 340, vy: dy * 340, friend, life: 1.5 });
+      vx: dx * 400, vy: dy * 400, friend, life: 1.5 });
     beep(friend ? 720 : 420, .04);
   }
   killPlayer() {
@@ -2471,10 +2484,10 @@ class BattleCityEngine extends GenreEngine {
     if (this.spawn <= 0 && alive < this.maxFoes && this.hits + alive < this.goal) {
       const c = [0, 12, 24][Math.floor(rand(0, 3))];
       const r = Math.random();
-      const kind = r < .18 ? 'armored' : r < .45 ? 'fast' : 'basic';
+      const kind = r < .28 ? 'armored' : r < .55 ? 'fast' : 'basic';
       const f = this.makeTank(c * 32 + 16, 16, 'down', kind);
       if (this.canMove(f.x, f.y, f)) this.foes.push(f);
-      this.spawn = rand(1.4, 2.6) / this.dm.traffic;
+      this.spawn = rand(1.0, 1.9) / this.dm.traffic;
     }
     for (const f of this.foes) {
       if (f.dead) continue;
@@ -2485,7 +2498,7 @@ class BattleCityEngine extends GenreEngine {
           const [ax, ay] = this.dirVec(dir);
           return this.canMove(f.x + ax * 22, f.y + ay * 22, f);
         });
-        if (opts.includes('down') && Math.random() < .55) f.dir = 'down';
+        if (opts.includes('down') && Math.random() < .7) f.dir = 'down';
         else if (opts.length) f.dir = opts[Math.floor(rand(0, opts.length))];
         f.turn = rand(.7, 1.5);
       }
@@ -2494,7 +2507,7 @@ class BattleCityEngine extends GenreEngine {
         this.base.alive = false; beep(120, .4);
       }
       f.cool -= dt;
-      if (f.cool <= 0) { this.shoot(f, false); f.cool = rand(.9, 1.9) / this.dm.traffic; }
+      if (f.cool <= 0) { this.shoot(f, false); f.cool = rand(.6, 1.3) / this.dm.traffic; }
     }
 
     for (const b of this.bullets) {
@@ -2610,16 +2623,16 @@ class RangeEngine extends GenreEngine {
   update(dt) {
     if (this.finished) return;
     this.time -= dt; this.spawn -= dt;
-    if (this.spawn <= 0 && this.targets.length < 3) {
-      this.targets.push({ x: rand(70, W - 70), y: rand(70, H - 70), r: rand(24, 34),
-        life: rand(1.1, 1.9) / this.dm.speed });
-      this.spawn = rand(.35, .7) / this.dm.traffic;
+    if (this.spawn <= 0 && this.targets.length < 4) {
+      this.targets.push({ x: rand(70, W - 70), y: rand(70, H - 70), r: rand(18, 28),
+        life: rand(.8, 1.3) / this.dm.speed });
+      this.spawn = rand(.28, .55) / this.dm.traffic;
     }
     let expired = 0;
     for (const t of this.targets) { t.life -= dt; if (t.life <= 0) expired++; }
     if (expired) {
       this.targets = this.targets.filter(t => t.life > 0);
-      this.misses += expired; this.score = Math.max(0, this.score - 2 * expired);
+      this.misses += expired; this.score = Math.max(0, this.score - 4 * expired);
     }
     if (this.hits >= this.goal) this.finish(true, 'Отличная стрельба!');
     else if (this.time <= 0) this.finish(false, 'Время вышло');
@@ -2630,7 +2643,7 @@ class RangeEngine extends GenreEngine {
     if (i >= 0) {
       const t = this.targets[i]; this.targets.splice(i, 1);
       this.hits++; this.score += 10 + Math.round(t.life); beep(900, .06);
-    } else { this.misses++; this.score = Math.max(0, this.score - 2); beep(200, .08); }
+    } else { this.misses++; this.score = Math.max(0, this.score - 4); beep(200, .08); }
   }
   draw(ctx) {
     drawBackdrop(ctx, this.p);
@@ -2661,7 +2674,7 @@ class WhackEngine extends GenreEngine {
   }
   spawn() {
     this.active = Math.floor(rand(0, this.holes.length));
-    this.ttl = rand(1.1, 1.8) / this.dm.speed;
+    this.ttl = rand(.8, 1.3) / this.dm.speed;
   }
   update(dt) {
     if (this.finished) return;
@@ -2670,7 +2683,7 @@ class WhackEngine extends GenreEngine {
       this.wait -= dt; if (this.wait <= 0) this.spawn();
     } else {
       this.ttl -= dt;
-      if (this.ttl <= 0) { this.active = -1; this.wait = rand(.25, .6); this.misses++; this.lives--; }
+      if (this.ttl <= 0) { this.active = -1; this.wait = rand(.15, .38); this.misses++; this.lives--; }
     }
     if (this.hits >= this.goal) this.finish(true, 'Все кроты пойманы!');
     else if (this.lives <= 0) this.finish(false, 'Слишком много промахов');
@@ -2680,8 +2693,8 @@ class WhackEngine extends GenreEngine {
     if (this.finished || state.mode !== 'play') return;
     if (this.active >= 0) {
       const h = this.holes[this.active];
-      if (Math.abs(x - h.x) < 70 && Math.abs(y - h.y + 8) < 42) {
-        this.hits++; this.score += 10; this.active = -1; this.wait = rand(.2, .5);
+      if (Math.abs(x - h.x) < 56 && Math.abs(y - h.y + 8) < 34) {
+        this.hits++; this.score += 10; this.active = -1; this.wait = rand(.12, .32);
         beep(760, .07); return;
       }
     }
@@ -2720,13 +2733,13 @@ class RunnerEngine extends GenreEngine {
     this.hero.vy += 1500 * dt; this.hero.y += this.hero.vy * dt;
     const floor = H - 72;
     if (this.hero.y > floor) { this.hero.y = floor; this.hero.vy = 0; this.onGround = true; }
-    const speed = 230 * s;
+    const speed = 270 * s;
     this.dist += speed * dt / 10;
     this.spawn -= dt;
     if (this.spawn <= 0) {
-      const coin = Math.random() < .45;
+      const coin = Math.random() < .3;
       this.things.push({ x: W + 30, y: coin ? floor - 95 : floor - 26, coin });
-      this.spawn = rand(.8, 1.5) / this.dm.traffic;
+      this.spawn = rand(.65, 1.2) / this.dm.traffic;
     }
     const heroBox = { x: this.hero.x - 18, y: this.hero.y - 28, w: 36, h: 56 };
     for (const o of this.things) {
@@ -2761,18 +2774,18 @@ class ReactionEngine extends GenreEngine {
   reset() {
     this.score = 0; this.tries = this.p.settings.count || 10; this.finished = false;
     this.phase = 'wait'; this.timer = rand(.8, 1.8);
-    this.rect = { x: W / 2 - 90, y: H / 2 - 50, w: 180, h: 100 }; this.last = 0;
+    this.rect = { x: W / 2 - 70, y: H / 2 - 39, w: 140, h: 78 }; this.last = 0;
   }
   newRound() {
     if (this.tries <= 0) { this.finish(this.score >= this.goal, 'Попытки закончились'); return; }
     this.phase = 'wait'; this.timer = rand(.9, 2.2);
-    this.rect = { x: rand(90, W - 270), y: rand(100, H - 190), w: 180, h: 100 };
+    this.rect = { x: rand(70, W - 200), y: rand(80, H - 160), w: 140, h: 78 };
   }
   update(dt) {
     if (this.finished) return;
     this.timer -= dt;
     if (this.phase === 'wait' && this.timer <= 0) {
-      this.phase = 'go'; this.timer = 1.6; this.last = performance.now(); beep(880, .08);
+      this.phase = 'go'; this.timer = 1.2; this.last = performance.now(); beep(880, .08);
     } else if (this.phase === 'go' && this.timer <= 0) {
       this.tries--; this.newRound();
     }
@@ -2783,10 +2796,10 @@ class ReactionEngine extends GenreEngine {
     const inside = x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
     if (this.phase === 'go' && inside) {
       const ms = Math.round(performance.now() - this.last);
-      this.score += Math.max(1, Math.round(20 - ms / 60));
+      this.score += Math.max(1, Math.round(14 - ms / 70));
       beep(1050, .06); this.tries--; this.newRound();
     } else {
-      this.score = Math.max(0, this.score - 3); this.tries--; beep(190, .12); this.newRound();
+      this.score = Math.max(0, this.score - 5); this.tries--; beep(190, .12); this.newRound();
     }
   }
   draw(ctx) {
@@ -2807,7 +2820,7 @@ class ReactionEngine extends GenreEngine {
 class DefenseEngine extends GenreEngine {
   reset() {
     this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0; this.finished = false;
-    this.time = this.limit; this.gold = 30; this.spots = [];
+    this.time = this.limit; this.gold = 24; this.spots = [];
     for (let i = 0; i < 4; i++) {
       this.spots.push({ x: 220 + i * 140, y: 120, cool: 0 });
       this.spots.push({ x: 220 + i * 140, y: H - 120, cool: 0 });
@@ -2817,11 +2830,11 @@ class DefenseEngine extends GenreEngine {
   update(dt) {
     if (this.finished) return;
     this.goldTimer += dt;
-    if (this.goldTimer >= 1) { this.goldTimer -= 1; this.gold += 2; }
+    if (this.goldTimer >= 1) { this.goldTimer -= 1; this.gold += 1; }
     this.spawn -= dt;
     if (this.spawn <= 0) {
-      this.foes.push({ x: W + 20, y: H / 2 + rand(-28, 28), hp: 2 + Math.floor(this.hits / 6) });
-      this.spawn = rand(1.4, 2.4) / this.dm.traffic;
+      this.foes.push({ x: W + 20, y: H / 2 + rand(-28, 28), hp: 3 + Math.floor(this.hits / 5) });
+      this.spawn = rand(1.1, 2.0) / this.dm.traffic;
     }
     for (const f of this.foes) {
       f.x -= 34 * this.spd * dt;
@@ -2831,11 +2844,11 @@ class DefenseEngine extends GenreEngine {
       if (!t.tower) continue;
       t.cool -= dt;
       if (t.cool <= 0) {
-        const target = this.foes.filter(f => !f.dead && Math.abs(f.x - t.x) < 170)
+        const target = this.foes.filter(f => !f.dead && Math.abs(f.x - t.x) < 150)
           .sort((a, b) => a.x - b.x)[0];
         if (target) {
           target.hp--; t.cool = .5; beep(700, .03);
-          if (target.hp <= 0) { target.dead = true; this.hits++; this.score += 10; this.gold += 5; }
+          if (target.hp <= 0) { target.dead = true; this.hits++; this.score += 10; this.gold += 4; }
         }
       }
     }
@@ -2848,9 +2861,9 @@ class DefenseEngine extends GenreEngine {
   onClick(x, y) {
     if (this.finished || state.mode !== 'play') return;
     const s = this.spots.find(s => !s.tower && Math.hypot(s.x - x, s.y - y) < 50);
-    if (s && this.gold >= 10) {
-      s.tower = true; s.cool = 0; this.gold -= 10; beep(560, .08);
-    } else showToast('Нужно 10 монет и свободное место', 'warn');
+    if (s && this.gold >= 14) {
+      s.tower = true; s.cool = 0; this.gold -= 14; beep(560, .08);
+    } else showToast('Нужно 14 монет и свободное место', 'warn');
   }
   draw(ctx) {
     drawBackdrop(ctx, this.p, { top: '#4a8f57', bottom: '#265c39', motif: 'grid' });
@@ -2863,7 +2876,7 @@ class DefenseEngine extends GenreEngine {
     drawEmoji(ctx, '🏰', 48, H / 2, 74);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 16px "Trebuchet MS", sans-serif';
     ctx.fillText('🪙 ' + this.gold, W / 2, 32);
-    this.edit(ctx, '🏰', 'Защита замка', `Отрази ${this.goal} врагов. Башня стоит 10 монет.`);
+    this.edit(ctx, '🏰', 'Защита замка', `Отрази ${this.goal} врагов. Башня стоит 14 монет.`);
   }
   getHud() { return this.goalHud('👾') + this.heartHud() + this.pill('🪙', this.gold) + this.timeHud(); }
 }
@@ -2872,14 +2885,14 @@ class DefenseEngine extends GenreEngine {
 class FarmEngine extends GenreEngine {
   reset() {
     this.score = 0; this.harvest = 0; this.finished = false; this.time = this.limit;
-    this.water = 5; this.waterTimer = 0; this.plots = [];
+    this.water = 4; this.waterTimer = 0; this.plots = [];
     for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++)
       this.plots.push({ x: W / 2 + (c - 1.5) * 130, y: 130 + r * 110, stage: 0, grow: 0 });
   }
   update(dt) {
     if (this.finished) return;
     this.waterTimer += dt;
-    if (this.waterTimer >= 2) { this.waterTimer -= 2; this.water = Math.min(8, this.water + 1); }
+    if (this.waterTimer >= 3) { this.waterTimer -= 3; this.water = Math.min(7, this.water + 1); }
     for (const p of this.plots) {
       if (p.stage === 2) { p.grow -= dt; if (p.grow <= 0) p.stage = 3; }
     }
@@ -2893,7 +2906,7 @@ class FarmEngine extends GenreEngine {
     if (!p) return;
     if (p.stage === 0) { p.stage = 1; beep(420, .05); }
     else if (p.stage === 1) {
-      if (this.water > 0) { this.water--; p.stage = 2; p.grow = rand(2.2, 3.4) / this.dm.speed; beep(680, .05); }
+      if (this.water > 0) { this.water--; p.stage = 2; p.grow = rand(3.2, 4.8) / this.dm.speed; beep(680, .05); }
       else showToast('Нет воды — подожди немного', 'warn');
     } else if (p.stage === 3) { p.stage = 0; this.harvest++; this.score += 10; beep(920, .07); }
   }
@@ -2919,7 +2932,7 @@ class FarmEngine extends GenreEngine {
 class DuelEngine extends GenreEngine {
   reset() {
     this.maxHp = Math.max(40, (this.p.settings.lives || 3) * 30);
-    this.hp = this.maxHp; this.enemyHp = this.maxHp; this.finished = false;
+    this.hp = this.maxHp; this.enemyHp = Math.round(this.maxHp * 1.3); this.finished = false;
     this.guard = false; this.enemyGuard = false; this.turns = 0;
     this.msg = 'Выбирай действие!'; this.enemyTimer = 0;
     this.btns = [
@@ -2930,13 +2943,13 @@ class DuelEngine extends GenreEngine {
   }
   act(k) {
     if (this.finished || state.mode !== 'play' || this.enemyTimer > 0) return;
-    const dmg = Math.round(12 * this.spd);
+    const dmg = Math.round(14 * this.spd);
     if (k === 'attack') {
       this.enemyHp -= this.enemyGuard ? Math.round(dmg / 2) : dmg;
       this.enemyGuard = false; this.msg = `Ты нанёс ${dmg} урона!`; beep(620, .07);
     } else if (k === 'defend') { this.guard = true; this.msg = 'Ты готов к защите'; beep(420, .06); }
-    else if (k === 'heal') { this.hp = Math.min(this.maxHp, this.hp + 15); this.msg = 'Ты восстановил 15 HP'; beep(760, .09); }
-    this.enemyTimer = .7; this.turns++;
+    else if (k === 'heal') { this.hp = Math.min(this.maxHp, this.hp + 12); this.msg = 'Ты восстановил 12 HP'; beep(760, .09); }
+    this.enemyTimer = .55; this.turns++;
   }
   onClick(x, y) {
     const b = this.btns.find(b => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h);
@@ -2948,11 +2961,11 @@ class DuelEngine extends GenreEngine {
       this.enemyTimer -= dt;
       if (this.enemyTimer <= 0) {
         const r = Math.random();
-        if (r < .62) {
-          const d = Math.round(12 * this.spd), real = this.guard ? Math.round(d / 2) : d;
+        if (r < .7) {
+          const d = Math.round(14 * this.spd), real = this.guard ? Math.round(d / 2) : d;
           this.hp -= real; this.msg = `Враг атакует! −${real} HP`; this.guard = false; beep(220, .1);
-        } else if (r < .85) { this.enemyGuard = true; this.msg = 'Враг защищается'; }
-        else { this.enemyHp = Math.min(this.maxHp, this.enemyHp + 10); this.msg = 'Враг лечится'; }
+        } else if (r < .9) { this.enemyGuard = true; this.msg = 'Враг защищается'; }
+        else { this.enemyHp = Math.min(this.maxHp, this.enemyHp + 14); this.msg = 'Враг лечится'; }
         this.turns++;
       }
     }
@@ -2985,7 +2998,7 @@ class BrawlEngine extends GenreEngine {
   reset() {
     this.score = 0; this.finished = false; this.time = this.limit;
     this.maxHp = Math.max(40, (this.p.settings.lives || 3) * 30);
-    this.hp = this.maxHp; this.enemyHp = this.maxHp;
+    this.hp = this.maxHp; this.enemyHp = Math.round(this.maxHp * 1.25);
     this.hero = { x: 230, y: H - 100 }; this.enemy = { x: W - 230, y: H - 100, hitCd: 0 };
     this.face = 1; this.punchCd = 0; this.block = false;
   }
@@ -2998,7 +3011,7 @@ class BrawlEngine extends GenreEngine {
     this.block = !!(keys.ArrowDown || keys.KeyS);
     this.punchCd -= dt;
     if ((pressed.Space || keys.Space) && this.punchCd <= 0) {
-      this.punchCd = .45;
+      this.punchCd = .55;
       if (Math.abs(this.hero.x - this.enemy.x) < 90) {
         this.enemyHp -= Math.round(14 * this.spd); this.score += 10;
         this.enemy.x += this.face * 25; beep(680, .07);
@@ -3006,8 +3019,8 @@ class BrawlEngine extends GenreEngine {
     }
     this.enemy.hitCd -= dt;
     const dir = Math.sign(this.hero.x - this.enemy.x);
-    if (Math.abs(this.hero.x - this.enemy.x) > 62) this.enemy.x += dir * 70 * this.spd * dt;
-    else if (this.enemy.hitCd <= 0) { this.enemy.hitCd = 1.1; this.hp -= this.block ? 4 : 10; beep(190, .12); }
+    if (Math.abs(this.hero.x - this.enemy.x) > 62) this.enemy.x += dir * 90 * this.spd * dt;
+    else if (this.enemy.hitCd <= 0) { this.enemy.hitCd = .8; this.hp -= this.block ? 6 : 14; beep(190, .12); }
     this.time -= dt;
     if (this.enemyHp <= 0) this.finish(true, 'Победа на ринге!');
     else if (this.hp <= 0) this.finish(false, 'Ты проиграл');
@@ -3047,20 +3060,20 @@ class ZombieEngine extends GenreEngine {
     p.x = clamp(p.x, 26, W - 26); p.y = clamp(p.y, 110, H - 30);
     this.fire -= dt;
     if ((pressed.Space || keys.Space) && this.fire <= 0) {
-      this.bullets.push({ x: p.x, y: p.y - 24 }); this.fire = .2; beep(600, .04);
+      this.bullets.push({ x: p.x, y: p.y - 24 }); this.fire = .26; beep(600, .04);
     }
     for (const b of this.bullets) b.y -= 480 * dt;
     this.bullets = this.bullets.filter(b => b.y > -10);
     this.spawn -= dt;
     if (this.spawn <= 0) {
-      this.foes.push({ x: rand(30, W - 30), y: -30, vx: rand(-20, 20) });
-      this.spawn = rand(.6, 1.2) / this.dm.traffic;
+      this.foes.push({ x: rand(30, W - 30), y: -30, vx: rand(-30, 30) });
+      this.spawn = rand(.45, .95) / this.dm.traffic;
     }
     for (const f of this.foes) {
       const a = Math.atan2(p.y - f.y, p.x - f.x);
-      f.x += Math.cos(a) * 25 * this.spd * dt + f.vx * dt;
-      f.y += Math.sin(a) * 45 * this.spd * dt;
-      if (Math.hypot(f.x - p.x, f.y - p.y) < 32) { f.dead = true; this.lives--; beep(150, .16); }
+      f.x += Math.cos(a) * 35 * this.spd * dt + f.vx * dt;
+      f.y += Math.sin(a) * 58 * this.spd * dt;
+      if (Math.hypot(f.x - p.x, f.y - p.y) < 36) { f.dead = true; this.lives--; beep(150, .16); }
       for (const b of this.bullets) {
         if (!b.dead && !f.dead && Math.hypot(b.x - f.x, b.y - f.y) < 26) {
           b.dead = true; f.dead = true; this.hits++; this.score += 10; beep(480, .06); break;
@@ -3094,7 +3107,7 @@ class RescueEngine extends GenreEngine {
     this.hero = { x: W / 2, y: H / 2 };
     this.friends = []; this.fires = [];
     for (let i = 0; i < 3; i++) this.friends.push({ x: rand(70, W - 70), y: rand(80, H - 70) });
-    for (let i = 0; i < 3; i++) this.fires.push({ x: rand(50, W - 50), y: rand(70, H - 50), a: rand(0, 6) });
+    for (let i = 0; i < 4; i++) this.fires.push({ x: rand(50, W - 50), y: rand(70, H - 50), a: rand(0, 6) });
     this.spawn = 2;
   }
   update(dt) {
@@ -3106,23 +3119,23 @@ class RescueEngine extends GenreEngine {
     if (keys.ArrowDown || keys.KeyS) h.y += s * dt;
     h.x = clamp(h.x, 30, W - 30); h.y = clamp(h.y, 60, H - 30);
     for (let i = this.friends.length - 1; i >= 0; i--) {
-      if (Math.hypot(this.friends[i].x - h.x, this.friends[i].y - h.y) < 34) {
+      if (Math.hypot(this.friends[i].x - h.x, this.friends[i].y - h.y) < 28) {
         this.friends.splice(i, 1); this.rescued++; this.score += 25; beep(880, .08);
         this.friends.push({ x: rand(70, W - 70), y: rand(80, H - 70) });
       }
     }
     for (const f of this.fires) {
       f.a += dt;
-      f.x = clamp(f.x + Math.cos(f.a) * 22 * dt, 40, W - 40);
-      f.y = clamp(f.y + Math.sin(f.a * .7) * 18 * dt, 60, H - 40);
+      f.x = clamp(f.x + Math.cos(f.a) * 30 * dt, 40, W - 40);
+      f.y = clamp(f.y + Math.sin(f.a * .7) * 25 * dt, 60, H - 40);
     }
     this.spawn -= dt;
     if (this.spawn <= 0) {
       this.fires.push({ x: rand(50, W - 50), y: rand(70, H - 50), a: rand(0, 6) });
-      this.spawn = rand(2.5, 4) / this.dm.traffic;
+      this.spawn = rand(1.8, 3) / this.dm.traffic;
     }
     for (const f of this.fires) {
-      if (Math.hypot(f.x - h.x, f.y - h.y) < 36) {
+      if (Math.hypot(f.x - h.x, f.y - h.y) < 40) {
         this.lives--; h.x = W / 2; h.y = H / 2; beep(170, .16); break;
       }
     }
@@ -3293,7 +3306,7 @@ function updateChips() {
   if (p.template === 'racer' || p.template === 'catcher') n = Math.round(p.settings.traffic * 10);
   if (p.template === 'pong') n = p.settings.target;
   if (p.template === 'arkanoid') n = p.settings.rows * 10;
-  if (p.template === 'shooter') n = 21;
+  if (p.template === 'shooter') n = 32;
   if (p.template === 'tictactoe') n = 9;
   if (p.template === 'memory') n = p.settings.pairs * 2;
   if (p.template === 'math') n = p.settings.count;
@@ -3521,8 +3534,8 @@ function quizSection(p) {
           <input class="field" data-a-text="${qi}" data-ai="${ai}" value="${esc(a)}" placeholder="Ответ ${'АБВГ'[ai]}">
         </div>`).join('')}
       </div>`).join('')}
-    <button class="btn btn-ghost" data-action="add-question" style="width:100%" ${p.questions.length >= 12 ? 'disabled' : ''}>＋ Добавить вопрос</button>
-    <p class="hint-mini">Отметь кружком правильный ответ. Можно добавить до 12 вопросов.</p>
+    <button class="btn btn-ghost" data-action="add-question" style="width:100%" ${p.questions.length >= 16 ? 'disabled' : ''}>＋ Добавить вопрос</button>
+    <p class="hint-mini">Отметь кружком правильный ответ. Можно добавить до 16 вопросов.</p>
   </div>`;
 }
 function snakeSection(p) {
@@ -3546,7 +3559,7 @@ function pongSection(p) {
     <h4 class="tool-title">🏓 Матч</h4>
     <label class="field-label">Счёт до победы</label>
     <div class="range-row">
-      <input type="range" id="fldTarget" min="1" max="15" step="1" value="${p.settings.target}">
+      <input type="range" id="fldTarget" min="1" max="20" step="1" value="${p.settings.target}">
       <span class="range-value" id="targetVal">${p.settings.target}</span>
     </div>
     <label class="field-label" style="margin-top:14px">Цвет твоей ракетки</label>
@@ -3559,7 +3572,7 @@ function arkanoidSection(p) {
     <h4 class="tool-title">🧱 Кирпичи</h4>
     <label class="field-label">Рядов кирпичей</label>
     <div class="range-row">
-      <input type="range" id="fldRows" min="2" max="7" step="1" value="${p.settings.rows}">
+      <input type="range" id="fldRows" min="2" max="8" step="1" value="${p.settings.rows}">
       <span class="range-value" id="rowsVal">${p.settings.rows}</span>
     </div>
     <label class="field-label" style="margin-top:14px">Цвет платформы</label>
@@ -3600,7 +3613,7 @@ function memorySection(p) {
     <h4 class="tool-title">🃏 Карточки</h4>
     <label class="field-label">Сколько пар найти?</label>
     <div class="segmented">
-      ${[4, 6, 8, 10].map(n => `<button data-pairs="${n}" class="${+p.settings.pairs === n ? 'active' : ''}">${n} пар</button>`).join('')}
+      ${[6, 8, 10, 12].map(n => `<button data-pairs="${n}" class="${+p.settings.pairs === n ? 'active' : ''}">${n} пар</button>`).join('')}
     </div>
     <label class="field-label" style="margin-top:14px">Картинки на карточках</label>
     <div class="segmented">
@@ -3738,7 +3751,7 @@ function renderProps() {
     snake: [['🍎 Лакомство', p.settings.food], ['🎨 Цвет', 'свой'], ['⚡ Скорость', Number(p.settings.speed).toFixed(1) + '×']],
     pong: [['🏆 До победы', p.settings.target], ['🤖 Соперник', DIFF[p.settings.difficulty].label]],
     arkanoid: [['🧱 Рядов', p.settings.rows], ['🧱 Кирпичей', state.engine && state.engine.bricks ? state.engine.bricks.length : p.settings.rows * 10]],
-    shooter: [['🚀 Корабль', p.settings.ship], ['👾 Пришельцев', '21'], ['⚡ Стрельба', Number(p.settings.fireRate).toFixed(1) + '×']],
+    shooter: [['🚀 Корабль', p.settings.ship], ['👾 Пришельцев', '32'], ['⚡ Стрельба', Number(p.settings.fireRate).toFixed(1) + '×']],
     tictactoe: [['🎯 Соперник', ({ easy: 'Сонный', normal: 'Обычный', hard: 'Умный' })[p.settings.smart] || 'Обычный'], ['✍️ Первый ход', p.settings.first ? 'Ты' : 'Компьютер']],
     memory: [['🃏 Пар', p.settings.pairs], ['🃏 Карточек', p.settings.pairs * 2], ['🎨 Колода', ({ animals: 'Зверята', food: 'Еда', space: 'Космос' })[p.settings.deck] || 'Зверята']],
     math: [['❓ Примеров', p.settings.count], ['⏱ Секунд', p.settings.seconds], ['➗ Действий', (p.settings.ops || []).join(' ')]]
@@ -4058,7 +4071,7 @@ function bindEvents() {
       showToast('Пример уровня вернулся 🔄');
     }
     if (act === 'add-question') {
-      if (p.questions.length >= 12) return;
+      if (p.questions.length >= 16) return;
       p.questions.push({ text: '', answers: ['', '', '', ''], correct: 0 });
       renderTools(); renderProps(); updateChips(); markDirty();
     }
