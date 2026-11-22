@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#6c4ce0">
   <title>ИгроЛаборатория — создай свою игру!</title>
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
 </head>
 <body>
   <div class="app-shell">
@@ -18,6 +18,7 @@
         </div>
       </div>
       <nav class="top-actions" aria-label="Главное меню">
+        <span class="chip coin-chip" id="coinChip">🪙 0</span>
         <button class="btn btn-ghost" id="btnMyGames">📁 Мои игры</button>
         <button class="btn btn-ghost" id="btnGallery">🌟 Галерея</button>
         <button class="btn btn-ghost" id="btnImport">📥 Загрузить</button>
@@ -40,7 +41,7 @@
               <button class="btn btn-hero-ghost" id="btnHelpHero">📖 Как это работает?</button>
             </div>
             <div class="hero-stats">
-              <span>⭐ 25 шаблонов</span><span>🎨 100% русский интерфейс</span><span>🎤 Голосовое управление</span><span>💾 Автосохранение</span>
+              <span>⭐ 35 шаблонов</span><span>🎨 100% русский интерфейс</span><span>🎤 Голосовое управление</span><span>💾 Автосохранение</span>
             </div>
           </div>
           <div class="hero-art" aria-hidden="true">
@@ -84,6 +85,7 @@
           <div class="editor-top-actions">
             <span id="saveStatus" class="save-status">● Всё сохранено</span>
             <button class="btn btn-small btn-ghost hidden" id="btnFullscreen" aria-label="На весь экран">⛶ На весь экран</button>
+            <button class="btn btn-small btn-ghost hidden" id="btnShop" aria-label="Магазин предметов">🛒 Магазин</button>
             <button class="btn btn-primary" id="btnMode">▶ Играть</button>
           </div>
         </div>
@@ -150,6 +152,6 @@
   <div id="toast" role="status" aria-live="polite"></div>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
 
-  <script src="app.js?v=29"></script>
+  <script src="app.js?v=30"></script>
 </body>
 </html>

@@ -15,6 +15,17 @@ const PUB_KEY = 'igrolab.published.v1';
 const keys = Object.create(null);
 const pressed = Object.create(null);
 
+/* Внутриигровая валюта: коины и магазин предметов */
+const COIN_PRICE = 10;
+const SHOP_ITEMS = [
+  { id: 'heart', em: '❤️', title: 'Лишняя жизнь', desc: 'Сразу +1 жизнь в этой игре' },
+  { id: 'shield', em: '🛡️', title: 'Защитный щит', desc: '8 секунд герой не получает урон' },
+  { id: 'clock', em: '⏰', title: 'Дополнительное время', desc: '+10 секунд на уровень' },
+  { id: 'score', em: '⭐', title: 'Бонус очков', desc: '+100 очков сразу' },
+  { id: 'magnet', em: '🧲', title: 'Магнит наград', desc: '10 секунд награды летят к герою', miniOnly: true },
+  { id: 'bomb', em: '💣', title: 'Бомба против врагов', desc: 'Уничтожить всех врагов на поле' }
+];
+
 const DIFF = {
   easy:   { speed: 0.92, traffic: 0.85, time: 78, quizTime: 18, label: 'Лёгкая' },
   normal: { speed: 1.18, traffic: 1.25, time: 48, quizTime: 13, label: 'Средняя' },
@@ -28,7 +39,14 @@ const STRATEGY_IDS = ['defense', 'farm', 'duel'];
 const ACTION_IDS  = ['brawl', 'zombie', 'rescue'];
 const GENRE_IDS = SHOOTER_IDS.concat(ARCADE_IDS, STRATEGY_IDS, ACTION_IDS);
 /* В этих играх управляют кликом по полю — экранные кнопки только мешают */
-const TOUCHLESS_IDS = ['range', 'whack', 'reaction', 'defense', 'farm', 'duel'];
+const MINI_IDS = ['mazelava', 'bomber', 'towerdef', 'survival', 'airfight', 'hockey', 'fisher', 'gardener', 'station', 'royale'];
+const MINI_LABELS = {
+  mazelava: '🔑 ключей', bomber: '🧱 кирпичей', towerdef: '👾 соперников', survival: '⛽ канистр',
+  airfight: '✈️ самолётов', hockey: '🏒 голов', fisher: '🐟 рыбы', gardener: '🌻 урожая',
+  station: '🔋 энергии', royale: '👑 соперников'
+};
+/* В этих играх управляют кликом — экранные кнопки не нужны */
+const TOUCHLESS_IDS = ['range', 'whack', 'reaction', 'defense', 'farm', 'duel', 'towerdef', 'gardener', 'station'];
 
 const state = {
   screen: 'gallery',
@@ -621,7 +639,78 @@ const TEMPLATES = {
     features: ['Спасение', 'Опасности', 'Счёт и жизни'],
     canvasTitle: 'Настройка спасения', canvasSubtitle: 'Настрой скорость, жизни и сколько друзей нужно спасти',
     hint: '💡 Стрелки или WASD — бег. Собирай 🧒, избегай 🔥.'
+  },
+  mazelava: {
+    id: 'mazelava', title: 'Лавовый лабиринт', emoji: '🔥', color: '#ffe6dc',
+    tag: 'Лабиринт', desc: 'Собирай ключи и обходи раскалённую лаву. Успей до того, как кончится время!',
+    features: ['Ключи', 'Опасная лава', 'Таймер'],
+    canvasTitle: 'Настройка лабиринта', canvasSubtitle: 'Выбери число ключей, время и скорость героя',
+    hint: '💡 Стрелки или WASD — движение. Собирай 🔑 и не наступай на 🔥.'
+  },
+  bomber: {
+    id: 'bomber', title: 'Бомбовый квартал', emoji: '💣', color: '#ffe9d6',
+    tag: 'Аркада', desc: 'Ставь бомбы, взрывай кирпичи и врагов — и найди выход из квартала!',
+    features: ['Бомбы', 'Разрушаемые стены', 'Выход'],
+    canvasTitle: 'Настройка бомбового квартала', canvasSubtitle: 'Настрой число кирпичей, время и жизни',
+    hint: '💡 Стрелки или WASD — движение, Пробел — поставить бомву. Убегай от взрыва!'
+  },
+  towerdef: {
+    id: 'towerdef', title: 'Защита крепости', emoji: '🏹', color: '#e4f0ff',
+    tag: 'Стратегия', desc: 'Кликай по полю и строй башни. Останови врагов, пока они не дошли до крепости!',
+    features: ['Башни', 'Волны врагов', 'Клик по полю'],
+    canvasTitle: 'Настройка защиты', canvasSubtitle: 'Настрой число волн, время и прочность крепости',
+    hint: '💡 Просто кликай по полю, чтобы построить башню. Башни стреляют сами.'
+  },
+  survival: {
+    id: 'survival', title: 'Гонка на выживание', emoji: '🏎️', color: '#e6f7ef',
+    tag: 'Гонки', desc: 'Лети на машине между камнями и собирай канистры с топливом. Ни одного столкновения!',
+    features: ['Препятствия', 'Топливо', 'Реакция'],
+    canvasTitle: 'Настройка гонки', canvasSubtitle: 'Настрой число канистр, время и скорость',
+    hint: '💡 Стрелки или WASD — движение. Собирай ⛽ и объезжай 🪨.'
+  },
+  airfight: {
+    id: 'airfight', title: 'Воздушный бой', emoji: '✈️', color: '#e2ecff',
+    tag: 'Шутер', desc: 'Веди самолёт и сбивай вражеские борта. За каждый сбитый — монетки!',
+    features: ['Стрельба', 'Вражеские самолёты', 'Монетки'],
+    canvasTitle: 'Настройка воздушного боя', canvasSubtitle: 'Настрой число целей, время и скорость',
+    hint: '💡 Стрелки или WASD — полёт, Пробел — стрельба. Сбивай ✈️ и собирай 🪙.'
+  },
+  hockey: {
+    id: 'hockey', title: 'Аркадный хоккей', emoji: '🏒', color: '#e7f4ff',
+    tag: 'Спорт', desc: 'Отбивай шайбу и забивай голы компьютерному вратарю. Кто быстрее наберёт нужное число?!',
+    features: ['Шайба', 'Вратарь-компьютер', 'Счёт'],
+    canvasTitle: 'Настройка хоккея', canvasSubtitle: 'Настрой число голов, время и скорости',
+    hint: '💡 ↑ ↓ или W S — двигать клюшку. Отбивай шайбу в ворота справа.'
+  },
+  fisher: {
+    id: 'fisher', title: 'Ловля рыбы', emoji: '🎣', color: '#e2f6fb',
+    tag: 'Аркада', desc: 'Опускай крючок и лови рыбу. Но берегись:bomb — они отнимают жизни!',
+    features: ['Крючок', 'Рыбы', 'Ловушки'],
+    canvasTitle: 'Настройка рыбалки', canvasSubtitle: 'Настрой улов, время и число жизней',
+    hint: '💡 ← → или A D — двигать удочку, Пробел — опустить крючок. Лови 🐟, избегай 💣.'
+  },
+  gardener: {
+    id: 'gardener', title: 'Волшебный сад', emoji: '🌻', color: '#e9f8e5',
+    tag: 'Симулятор', desc: 'Сажай семечки, поливай их и собирай урожай. Успевай удалять сорняки!',
+    features: ['Грядки', 'Рост растений', 'Сорняки'],
+    canvasTitle: 'Настройка сада', canvasSubtitle: 'Настрой число растений, время и жизни',
+    hint: '💡 Кликай по грядке: посадить → полить → собрать. Сорняки тоже можно убрать кликом.'
+  },
+  station: {
+    id: 'station', title: 'Космическая станция', emoji: '🛰️', color: '#e6e8ff',
+    tag: 'Экшен', desc: 'Кислород заканчивается! Собирай энергии и чини течи, чтобы выжить.',
+    features: ['Кислород', 'Течи', 'Починка'],
+    canvasTitle: 'Настройка станции', canvasSubtitle: 'Настрой число модулей, время и жизни',
+    hint: '💡 Кликай по 🔋, чтобы собрать энергию, и по 💨, чтобы заделать течь.'
+  },
+  royale: {
+    id: 'royale', title: 'Королевская битва', emoji: '👑', color: '#f5e8ff',
+    tag: 'Баттл', desc: 'Стреляй по соперникам и оставайся в безопасной зоне, пока она не станет крошечной!',
+    features: ['Безопасная зона', 'Боты', 'Последний герой'],
+    canvasTitle: 'Настройка битвы', canvasSubtitle: 'Настрой число соперников, время и жизни',
+    hint: '💡 Стрелки или WASD — движение, Пробел — стрельба по ближайшему сопернику. Не выходи из круга!'
   }
+
 };
 
 const TIPS = {
@@ -750,7 +839,58 @@ const TIPS = {
     'Сначала спасай друзей, которые ближе к опасности.',
     'Огонь отнимает жизнь — обходи его сторонкой.',
     'Спасённый друг даёт много очков!'
+  ],
+  mazelava: [
+    'Ключи лежат в свободных проходах — обходи стены, а не проламывай их.',
+    'Лава отнимает жизнь. Обходи её по краю или беги быстрее.',
+    'Собранный 🔑 даёт 2 коина, а победа — ещё 10.'
+  ],
+  bomber: [
+    'Ставь бомбу рядом с кирпичом и сразу отбегай на две клетки.',
+    'Взрыв срабатывает через полторы секунды — успей скрыться!',
+    'Когда разрушишь нужное число кирпичей, беги к 🚪.'
+  ],
+  towerdef: [
+    'Ставь башни рядом с дорогой врагов — так они стреляют чаще.',
+    'Всего можно построить 6 башен. Выбирай места для перекрёстков!',
+    'Каждый подбитый враг приносит 1 монетку.'
+  ],
+  survival: [
+    'Держись середины — там больше места для маневра.',
+    'Канистра ⛽ даёт 2 коина и засчитывается в цель.',
+    'На трудной сложности камни летят быстрее.'
+  ],
+  airfight: [
+    'Стреляй очередями: нажми и удерживай Пробел.',
+    'Сбитый самолёт даёт 2 коина, случайная монетка — ещё 2.',
+    'Не подпускай врагов вниз — пропущенный отнимает жизнь.'
+  ],
+  hockey: [
+    'Бей по шайбе краем клюшки — так она летит сильнее.',
+    'Гол даёт 3 коина и новую шайбу.',
+    'Вратарь следит за шайбой, но иногда ошибается — используй это!'
+  ],
+  fisher: [
+    'Наводи удочку на рыбу и жми Пробел — крючок опустится сам.',
+    'Рыба даёт 2 коина, а бомба отнимает жизнь.',
+    'Пойманную рыбу заменяет новая — лови сколько угодно!'
+  ],
+  gardener: [
+    'Клик по пустой грядке — посадить, ещё клик — полить.',
+    'Через несколько секунд появится 🌻 — кликни, чтобы собрать.',
+    'Сорняки растут сами. Убирай их кликом, пока не отняли жизнь.'
+  ],
+  station: [
+    'Кислород тает на глазах — успевай кликать по 🔋.',
+    'Течи 💨 тоже важно чинить: если лопнет, станция потеряет жизнь.',
+    'Каждая собранная энергия даёт 2 коина.'
+  ],
+  royale: [
+    'Пуля летит в ближайшего бота — просто жми Пробел.',
+    'Круг сужается: возвращайся к центру, иначе теряй жизни.',
+    'Боты тоже гибнут в лаве за кругом — это твои очки!'
   ]
+
 };
 
 /* Предметы, которые можно расставить на уровне */
@@ -912,6 +1052,9 @@ function createProject(templateId) {
       narrate: true
     }
   };
+  p.coins = 0;
+  p.firstWin = false;
+  p.purchases = {};
   const extras = {
     runnerhuman: { hero: '🧑' },
     snake:     { snakeColor: '#38c172', food: '🍎' },
@@ -921,6 +1064,16 @@ function createProject(templateId) {
     tank:      { layout: 1 },
     tictactoe: { smart: 'hard', first: false, mark: '❌' },
     memory:    { pairs: 10, deck: 'animals' },
+    mazelava:  { target: 6, seconds: 60, hero: '🔦' },
+    bomber:    { target: 8, seconds: 75, hero: '🧑' },
+    towerdef:  { target: 8, seconds: 90, hero: '🏹' },
+    survival:  { target: 6, seconds: 60, hero: '🏎️' },
+    airfight:  { target: 8, seconds: 60, hero: '✈️' },
+    hockey:    { target: 5, seconds: 90, hero: '🏒' },
+    fisher:    { target: 8, seconds: 60, hero: '🎣' },
+    gardener:  { target: 6, seconds: 90, hero: '🌱' },
+    station:   { target: 6, seconds: 75, hero: '👨‍🚀' },
+    royale:    { target: 6, seconds: 75, hero: '🧑' },
     math:      { ops: ['+', '-'], count: 12, seconds: 10 }
   };
   if (extras[templateId]) Object.assign(p.settings, extras[templateId]);
@@ -990,6 +1143,56 @@ function markDirty() {
   state.saveTimer = setTimeout(() => saveProject(true), 1000);
 }
 
+/* ---------- Коины и магазин ---------- */
+function normalizeProgress(p) {
+  if (!p) return;
+  p.coins = Math.max(0, Math.floor(Number(p.coins) || 0));
+  p.firstWin = !!p.firstWin;
+  p.purchases = (p.purchases && typeof p.purchases === 'object') ? p.purchases : {};
+}
+function getCoins(p = state.project) { return p ? Math.max(0, Math.floor(Number(p.coins) || 0)) : 0; }
+function updateCoinChip() {
+  const el = $('#coinChip');
+  if (el) el.textContent = '🪙 ' + getCoins();
+}
+function addCoins(n, reason) {
+  const p = state.project;
+  if (!p || !n) return;
+  normalizeProgress(p);
+  p.coins = getCoins(p) + Math.max(0, Math.floor(n));
+  updateCoinChip();
+  if (reason) showToast(`🪙 +${n} — ${reason}`, 'ok');
+  markDirty();
+}
+function spendCoins(n) {
+  const p = state.project;
+  if (!p || getCoins(p) < n) return false;
+  p.coins = getCoins(p) - n;
+  updateCoinChip();
+  markDirty();
+  return true;
+}
+function openShop() {
+  const p = state.project;
+  if (!p) return;
+  normalizeProgress(p);
+  const coins = getCoins(p);
+  const mini = typeof MINI_IDS !== 'undefined' && MINI_IDS.includes(p.template);
+  const items = SHOP_ITEMS.filter(it => !it.miniOnly || mini);
+  openModal(`
+    <h3>🛒 Магазин предметов</h3>
+    <p class="modal-sub">Коины даются за 🪙 и 💎, а также за победы. Каждый предмет стоит ${COIN_PRICE} 🪙. Покупка действует в этой игре.</p>
+    <div class="coin-balance">🪙 <b>${coins}</b> коинов</div>
+    <div class="shop-grid">${items.map(it => `
+      <button class="shop-item ${coins < COIN_PRICE ? 'poor' : ''}" data-buy="${it.id}" ${coins < COIN_PRICE ? 'disabled' : ''}>
+        <span class="shop-emoji">${it.em}</span>
+        <b>${it.title}</b>
+        <small>${it.desc}</small>
+        <span class="shop-price">${COIN_PRICE} 🪙</span>
+      </button>`).join('')}</div>
+    <div class="modal-actions"><button class="btn btn-primary" data-modal="close">Вернуться в игру 🎮</button></div>`);
+}
+
 /* ---------- Движки игр ---------- */
 class BaseEngine {
   constructor(p) { this.p = p; this.onFinish = () => {}; }
@@ -998,6 +1201,49 @@ class BaseEngine {
   update(dt) {}
   draw(ctx) {}
   getHud() { return ''; }
+  buy(id) {
+    if (id === 'heart') {
+      if (typeof this.hearts === 'number') this.hearts++;
+      else if (typeof this.lives === 'number') this.lives++;
+      else if (this.p && this.p.settings) this.p.settings.lives = (this.p.settings.lives || 2) + 1;
+    } else if (id === 'score') {
+      this.score = (this.score || 0) + 100;
+    } else if (id === 'clock') {
+      for (const field of ['timeLeft', 'limit', 'remaining', 'qLeft']) {
+        if (typeof this[field] === 'number') this[field] += 10;
+      }
+      if (this.data && typeof this.data.oxygen === 'number') this.data.oxygen += 10;
+    } else if (id === 'bomb') {
+      for (const field of ['enemies', 'foes', 'targets', 'mobs', 'zombies']) {
+        if (Array.isArray(this[field])) this[field].forEach(e => { e.dead = true; });
+      }
+      if (Array.isArray(this.ents)) {
+        this.ents.forEach(e => { if (e.kind === 'enemy' || e.kind === 'bot' || e.kind === 'bombfish') e.dead = true; });
+      }
+    } else if (id === 'shield') {
+      this.shield = 8;
+    } else if (id === 'magnet') {
+      this.magnet = 10;
+    }
+    this.wrapEffects();
+  }
+  wrapEffects() {
+    if (this._fxWrapped) return;
+    this._fxWrapped = true;
+    const original = this.update.bind(this);
+    this.update = dt => {
+      if (this.shield > 0) {
+        this.shield = Math.max(0, this.shield - dt);
+        if (typeof this.hurt === 'function' && !this._shieldHurt) {
+          const hurt = this.hurt.bind(this);
+          this.hurt = (...args) => { if (this.shield > 0) return; return hurt(...args); };
+          this._shieldHurt = true;
+        }
+      }
+      if (this.magnet > 0) this.magnet = Math.max(0, this.magnet - dt);
+      original(dt);
+    };
+  }
   destroy() {}
 }
 
@@ -1020,6 +1266,8 @@ class GridEngine extends BaseEngine {
     if (pickup.got) return false;
     pickup.got = true;
     this.taken.add(pickup.key);
+    const gain = { points10: 1, points25: 2, points50: 3, points100: 5, goal: 2, life: 1 }[pickup.eff] || 0;
+    if (gain) addCoins(gain);
     return true;
   }
   itemAt(x, y) { return this.pickups.find(it => !it.got && it.x === x && it.y === y); }
@@ -3396,6 +3644,525 @@ class RescueEngine extends GenreEngine {
   getHud() { return this.goalHud('🧒') + this.scoreHud() + this.heartHud() + this.timeHud(); }
 }
 
+
+const MINI_EMOJI = {
+  key: '🔑', lava: '🔥', enemy: '👾', exit: '🚪', rock: '🪨', fuel: '⛽',
+  coin: '🪙', fish: '🐟', bombfish: '💣', energy: '🔋', leak: '💨', bot: '🤖'
+};
+/* Один общий движок для десяти новых аркадных режимов */
+class MiniEngine extends BaseEngine {
+  constructor(p) { super(p); this.kind = p.template; this.reset(); }
+  reset() {
+    const s = this.p.settings, d = diffOf(this.p);
+    this.score = 0; this.time = 0; this.limit = s.seconds || 60;
+    this.goal = Math.max(2, Math.round((s.target || 8) * (d.speed / 1.18)));
+    this.hearts = s.lives || 2; this.finished = false; this.invuln = 0;
+    this.shield = 0; this.magnet = 0; this.count = 0;
+    this.player = { x: W / 2 - 13, y: H - 60, w: 26, h: 26 };
+    this.ents = []; this.bullets = []; this.spawnT = 0; this.fireCd = 0;
+    this.data = {};
+    this.setup();
+  }
+  add(kind, x, y, w = 24, h = 24, extra = {}) {
+    const e = Object.assign({ kind, x, y, w, h, dead: false, vx: 0, vy: 0 }, extra);
+    this.ents.push(e);
+    return e;
+  }
+  setup() {
+    switch (this.kind) {
+      case 'mazelava': {
+        this.player.x = 24; this.player.y = 24;
+        [[80, 120, 220, 26], [400, 120, 220, 26], [220, 250, 220, 26],
+         [560, 250, 180, 26], [90, 370, 200, 26], [430, 370, 250, 26]]
+          .forEach(r => this.add('wall', r[0], r[1], r[2], r[3]));
+        const spots = [[60, 55], [340, 55], [680, 55], [60, 190], [340, 190], [690, 190],
+          [60, 315], [340, 315], [690, 315], [60, 410], [340, 410], [690, 410]];
+        this.goal = Math.min(this.goal, spots.length);
+        for (let i = 0; i < this.goal; i++) this.add('key', spots[i][0], spots[i][1]);
+        [[180, 200], [520, 200], [300, 330], [640, 330], [180, 420], [520, 420]]
+          .forEach(v => this.add('lava', v[0], v[1], 34, 26));
+        break;
+      }
+      case 'bomber': {
+        this.player.x = CELL + 4; this.player.y = CELL + 4;
+        for (let y = 1; y < ROWS - 1; y++) {
+          for (let x = 1; x < COLS - 1; x++) {
+            if ((x <= 3 && y <= 3) || (x >= COLS - 4 && y >= ROWS - 4)) continue;
+            if (x % 2 === 0 && y % 2 === 0) this.add('solid', x * CELL + 2, y * CELL + 2, CELL - 4, CELL - 4);
+            else if ((x * 7 + y * 11) % 5 < 2) this.add('brick', x * CELL + 2, y * CELL + 2, CELL - 4, CELL - 4);
+          }
+        }
+        this.goal = Math.max(2, Math.min(this.goal, this.ents.filter(e => e.kind === 'brick').length));
+        for (let i = 0; i < 3; i++) this.add('enemy', 360 + i * 130, 110, 26, 26, { vx: i % 2 ? -50 : 50 });
+        this.data.bombs = [];
+        this.add('exit', W - CELL - 6, H - CELL - 6, 28, 28);
+        break;
+      }
+      case 'towerdef': {
+        this.data.path = [[0, 110], [220, 110], [220, 300], [500, 300], [500, 150], [W, 150]];
+        this.data.wave = this.goal + 4; this.data.spawned = 0; this.data.towers = [];
+        this.spawnT = 0.5;
+        break;
+      }
+      case 'survival': { this.player.y = H - 46; this.spawnT = 0.4; break; }
+      case 'airfight': { this.spawnT = 0.4; break; }
+      case 'hockey': {
+        this.player.x = 40; this.player.y = H / 2 - 20;
+        this.data.puck = { x: W / 2, y: H / 2, vx: 180, vy: 80, w: 16, h: 16 };
+        this.data.aiY = H / 2 - 24;
+        break;
+      }
+      case 'fisher': {
+        this.player.y = 20; this.data.hookY = 20; this.data.hookDown = false;
+        for (let i = 0; i < 6; i++) this.add('fish', rand(40, W - 60), rand(H - 120, H - 40), 26, 20, { vx: rand(-70, 70) });
+        for (let i = 0; i < 2; i++) this.add('bombfish', rand(40, W - 60), rand(H - 120, H - 40), 24, 24, { vx: rand(-50, 50) });
+        break;
+      }
+      case 'gardener': {
+        this.data.plots = [];
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) this.data.plots.push({ x: 140 + c * 104, y: 70 + r * 112, state: 0, t: 0 });
+        this.data.weedT = 5;
+        break;
+      }
+      case 'station': { this.data.oxygen = this.limit * 0.55; this.spawnT = 0.5; break; }
+      case 'royale': {
+        this.player.x = W / 2 - 13; this.player.y = H / 2 - 13;
+        this.goal = Math.min(this.goal, 7);
+        for (let i = 0; i < this.goal; i++) this.add('bot', rand(60, W - 60), rand(60, H - 60), 26, 26, { vx: rand(-70, 70), vy: rand(-70, 70) });
+        this.data.zone = Math.min(W, H) / 2 - 20;
+        break;
+      }
+    }
+  }
+  movePlayer(dt, spd) {
+    let vx = 0, vy = 0;
+    if (keys.ArrowLeft || keys.KeyA) vx = -1;
+    else if (keys.ArrowRight || keys.KeyD) vx = 1;
+    if (keys.ArrowUp || keys.KeyW) vy = -1;
+    else if (keys.ArrowDown || keys.KeyS) vy = 1;
+    const h = this.player;
+    h.x = clamp(h.x + vx * spd * dt, 6, W - h.w - 6);
+    h.y = clamp(h.y + vy * spd * dt, 6, H - h.h - 6);
+    if (this.magnet > 0) {
+      const collectible = ['coin', 'gem', 'key', 'fish', 'energy', 'fuel', 'crop'];
+      for (const e of this.ents) {
+        if (e.dead || collectible.indexOf(e.kind) === -1) continue;
+        const dx = h.x + h.w / 2 - (e.x + e.w / 2), dy = h.y + h.h / 2 - (e.y + e.h / 2);
+        const dist = Math.hypot(dx, dy) || 1;
+        if (dist < 130) { e.x += dx / dist * 170 * dt; e.y += dy / dist * 170 * dt; }
+      }
+    }
+  }
+  collect(e, points, coins) {
+    if (e.dead) return;
+    e.dead = true; this.score += points; this.count++;
+    if (coins) addCoins(coins);
+    beep(880, .08); FX.burst(e.x + e.w / 2, e.y + e.h / 2, '#ffd166', 6);
+    if (this.count >= this.goal) this.win('Цель достигнута! Ты молодец! 🎉');
+  }
+  hurt() {
+    if (this.finished || this.invuln > 0 || this.shield > 0) return;
+    this.hearts--; this.invuln = 1; beep(220, .16);
+    if (this.hearts <= 0) { this.finish(false, 'Не хватило жизней. Попробуй ещё раз!'); return; }
+    showToast('Ой! −1 жизнь 💔', 'warn');
+  }
+  win(msg) { this.finish(true, msg); }
+  finish(win, msg) { this.finished = true; this.onFinish(win, msg); }
+  onClick(x, y) {
+    if (this.kind === 'towerdef') {
+      if (this.data.towers.length >= 6) { showToast('Можно построить не больше 6 башен 🏹', 'warn'); return; }
+      if (this.data.towers.some(t => Math.hypot(t.x - x, t.y - y) < 55)) { showToast('Здесь уже есть башня', 'warn'); return; }
+      this.data.towers.push({ x, y, cd: .2 }); beep(520, .1); FX.burst(x, y, '#5ac8fa', 8);
+      showToast('🏹 Башня построена!', 'ok');
+    } else if (this.kind === 'gardener') {
+      const pl = this.data.plots.find(q => x >= q.x && x <= q.x + 42 && y >= q.y && y <= q.y + 42);
+      if (!pl) return;
+      if (pl.state === 0) { pl.state = 1; beep(520, .06); showToast('🌱 Семечко посажено', 'ok'); }
+      else if (pl.state === 1) { pl.state = 2; pl.t = 0; beep(620, .06); showToast('💧 Полито! Жди урожай', 'ok'); }
+      else if (pl.state === 3) {
+        pl.state = 0; this.score += 30; this.count++; addCoins(3);
+        beep(880, .1); FX.burst(pl.x + 20, pl.y + 20, '#ffd166', 8);
+        if (this.count >= this.goal) this.win('Сад расцвёл! Ты собрал весь урожай 🌻');
+      } else if (pl.state === 4) { pl.state = 0; this.score += 10; beep(600, .06); showToast('🌿 Сорняк убран!', 'ok'); }
+    } else if (this.kind === 'station') {
+      for (const e of this.ents) {
+        if (e.dead) continue;
+        if (!(x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h)) continue;
+        if (e.kind === 'energy') { this.data.oxygen = Math.min(this.limit, this.data.oxygen + 14); this.collect(e, 20, 2); }
+        else if (e.kind === 'leak') { e.dead = true; this.score += 10; beep(600, .07); showToast('🔧 Течь заделана!', 'ok'); }
+      }
+    }
+  }
+  update(dt) {
+    if (this.finished) return;
+    const s = this.p.settings, d = diffOf(this.p), spd = 210 * s.speed * d.speed;
+    this.time += dt; this.invuln = Math.max(0, this.invuln - dt);
+    this.fireCd = Math.max(0, this.fireCd - dt);
+    if (this.limit && this.time >= this.limit && this.kind !== 'station') { this.finish(false, 'Время вышло! Попробуй быстрее ⏱'); return; }
+
+    switch (this.kind) {
+      case 'mazelava': {
+        const px = this.player.x, py = this.player.y;
+        this.movePlayer(dt, spd * .9);
+        for (const e of this.ents) {
+          if (e.dead || e.kind !== 'wall') continue;
+          if (aabb(this.player, e)) { this.player.x = px; this.player.y = py; break; }
+        }
+        for (const e of this.ents) {
+          if (e.dead) continue;
+          if (e.kind === 'key' && aabb(this.player, e)) this.collect(e, 20, 2);
+          else if (e.kind === 'lava' && aabb(this.player, e)) this.hurt();
+        }
+        break;
+      }
+      case 'bomber': {
+        const px = this.player.x, py = this.player.y;
+        this.movePlayer(dt, spd * .9);
+        for (const e of this.ents) {
+          if (e.dead || ['wall', 'solid', 'brick'].indexOf(e.kind) === -1) continue;
+          if (aabb(this.player, e)) { this.player.x = px; this.player.y = py; break; }
+        }
+        if (pressed.Space && this.data.bombs.length < 3) {
+          this.data.bombs.push({ x: Math.floor((this.player.x + 13) / CELL) * CELL + 4,
+            y: Math.floor((this.player.y + 13) / CELL) * CELL + 4, t: 1.6 });
+          beep(300, .08);
+        }
+        for (const b of this.data.bombs) {
+          b.t -= dt;
+          if (b.t > 0) continue;
+          b.done = true;
+          for (const e of this.ents) {
+            if (e.dead || ['brick', 'enemy'].indexOf(e.kind) === -1) continue;
+            if (Math.abs(e.x - b.x) < CELL * 1.3 && Math.abs(e.y - b.y) < CELL * 1.3) {
+              e.dead = true; FX.burst(e.x + 12, e.y + 12, '#ff9f43', 10);
+              if (e.kind === 'brick') { this.score += 10; this.count++; addCoins(1); }
+              else this.score += 50;
+            }
+          }
+          if (Math.abs(this.player.x - b.x) < CELL && Math.abs(this.player.y - b.y) < CELL) this.hurt();
+        }
+        this.data.bombs = this.data.bombs.filter(b => !b.done);
+        if (this.count >= this.goal) {
+          const exit = this.ents.find(e => e.kind === 'exit' && !e.dead);
+          if (exit && aabb(this.player, exit)) { this.win('Все кирпичи разрушены, и ты нашёл выход!'); break; }
+        }
+        for (const e of this.ents) if (!e.dead && e.kind === 'enemy' && aabb(this.player, e)) this.hurt();
+        break;
+      }
+      case 'towerdef': {
+        this.spawnT -= dt;
+        if (this.spawnT <= 0 && this.data.spawned < this.data.wave) {
+          this.data.spawned++;
+          this.add('enemy', -30, rand(90, 310), 26, 26, { hp: 2, vx: 55 * d.speed });
+          this.spawnT = 1.5 / d.traffic;
+        }
+        const path = this.data.path;
+        for (const e of this.ents) {
+          if (e.dead || e.kind !== 'enemy') continue;
+          e.x += e.vx * dt;
+          let targetY = path[path.length - 1][1];
+          for (let i = 0; i < path.length - 1; i++) {
+            const a = path[i], b = path[i + 1];
+            if (e.x >= Math.min(a[0], b[0]) && e.x <= Math.max(a[0], b[0])) {
+              const t = (e.x - a[0]) / ((b[0] - a[0]) || 1);
+              targetY = a[1] + (b[1] - a[1]) * t; break;
+            }
+          }
+          e.y += (targetY - e.y) * Math.min(1, dt * 3);
+          if (e.x > W + 20) { e.dead = true; this.hurt(); }
+        }
+        for (const tw of this.data.towers) {
+          tw.cd -= dt;
+          if (tw.cd > 0) continue;
+          let best = null, bd = 1e9;
+          for (const e of this.ents) {
+            if (e.dead || e.kind !== 'enemy') continue;
+            const dd = Math.hypot(e.x - tw.x, e.y - tw.y);
+            if (dd < bd) { bd = dd; best = e; }
+          }
+          if (best && bd < 230) {
+            this.bullets.push({ x: tw.x, y: tw.y, vx: 0, vy: 0, target: best, life: 1.2, homing: true });
+            tw.cd = .6 / d.speed; beep(640, .04);
+          }
+        }
+        for (const b of this.bullets) {
+          if (!b.homing) continue;
+          b.life -= dt;
+          if (!b.target || b.target.dead || b.life <= 0) { b.life = 0; continue; }
+          const dx = b.target.x + 13 - b.x, dy = b.target.y + 13 - b.y, dd = Math.hypot(dx, dy) || 1;
+          if (dd < 16) {
+            b.target.dead = true; b.life = 0; this.score += 25; this.count++; addCoins(1);
+            FX.burst(b.target.x, b.target.y, '#5ac8fa', 8);
+          } else { b.x += dx / dd * 350 * dt; b.y += dy / dd * 350 * dt; }
+        }
+        if (this.data.spawned >= this.data.wave && !this.ents.some(e => !e.dead && e.kind === 'enemy')) this.win('Крепость устояла! 🏰');
+        break;
+      }
+      case 'survival': {
+        this.movePlayer(dt, spd);
+        this.spawnT -= dt;
+        if (this.spawnT <= 0) {
+          this.spawnT = Math.max(.28, .8 / d.speed);
+          if (Math.random() < .32) this.add('fuel', rand(40, W - 40), -20, 24, 24, { vy: 120 });
+          else this.add('rock', rand(30, W - 50), -30, 28, 28, { vy: 155 * d.speed });
+        }
+        for (const e of this.ents) {
+          if (e.dead) continue;
+          e.y += (e.vy || 0) * dt;
+          if (aabb(this.player, e)) {
+            if (e.kind === 'fuel') this.collect(e, 20, 2);
+            else { e.dead = true; this.hurt(); }
+          }
+        }
+        break;
+      }
+      case 'airfight': {
+        this.movePlayer(dt, spd);
+        if (keys.Space && this.fireCd <= 0) {
+          this.fireCd = .24 / d.speed;
+          this.bullets.push({ x: this.player.x + 8, y: this.player.y - 6, vx: 0, vy: -430, life: 1.4 });
+          beep(720, .04);
+        }
+        this.spawnT -= dt;
+        if (this.spawnT <= 0) {
+          this.spawnT = Math.max(.4, 1.1 / d.speed);
+          this.add('enemy', rand(30, W - 50), -30, 28, 26, { vy: 85 * d.speed, vx: rand(-30, 30) });
+        }
+        if (Math.random() < dt * .25) this.add('coin', rand(30, W - 40), rand(60, H - 80), 22, 22, { vy: 20 });
+        for (const e of this.ents) {
+          if (e.dead) continue;
+          e.y += (e.vy || 0) * dt; e.x += (e.vx || 0) * dt;
+          if (e.y > H + 30) { e.dead = true; this.hurt(); continue; }
+          if (e.kind === 'coin' && aabb(this.player, e)) this.collect(e, 15, 2);
+          else if (e.kind === 'enemy' && aabb(this.player, e)) { e.dead = true; this.hurt(); }
+        }
+        for (const b of this.bullets) {
+          b.x += b.vx * dt; b.y += b.vy * dt;
+          for (const e of this.ents) {
+            if (e.dead || e.kind !== 'enemy') continue;
+            if (aabb({ x: b.x - 4, y: b.y - 4, w: 8, h: 8 }, e)) {
+              e.dead = true; b.life = 0; this.score += 50; this.count++; addCoins(2);
+              FX.burst(e.x, e.y, '#ff6b81', 8);
+              if (this.count >= this.goal) this.win('Все вражеские самолёты сбиты! ✈️');
+            }
+          }
+        }
+        break;
+      }
+      case 'hockey': {
+        const h = this.player;
+        let vy = 0;
+        if (keys.ArrowUp || keys.KeyW) vy = -1;
+        else if (keys.ArrowDown || keys.KeyS) vy = 1;
+        h.y = clamp(h.y + vy * spd * dt, 20, H - h.h - 20);
+        const puck = this.data.puck;
+        puck.x += puck.vx * dt; puck.y += puck.vy * dt;
+        if (puck.y < 20 || puck.y > H - 36) puck.vy *= -1;
+        if (puck.x < h.x + h.w && puck.x + puck.w > h.x && puck.y < h.y + h.h && puck.y + puck.h > h.y) {
+          puck.x = h.x + h.w; puck.vx = Math.abs(puck.vx) + 20; puck.vy += rand(-70, 70); beep(520, .05);
+        }
+        this.data.aiY += (puck.y - this.data.aiY) * Math.min(1, dt * 2.2 * d.speed);
+        const ai = { x: W - 44, y: this.data.aiY, w: 14, h: 48 };
+        if (puck.x + puck.w > ai.x && puck.x < ai.x + ai.w && puck.y < ai.y + ai.h && puck.y + puck.h > ai.y) {
+          puck.x = ai.x - puck.w; puck.vx = -(Math.abs(puck.vx) + 20); beep(440, .05);
+        }
+        if (puck.x > W) {
+          this.count++; this.score += 100; addCoins(3); beep(880, .14);
+          showToast('🏒 Гол! +3 коина', 'ok');
+          this.data.puck = { x: W / 2, y: H / 2, vx: -180, vy: rand(-80, 80), w: 16, h: 16 };
+          if (this.count >= this.goal) this.win('Ты забил все шайбы! 🏒');
+        }
+        if (puck.x < -20) {
+          this.hurt();
+          this.data.puck = { x: W / 2, y: H / 2, vx: 180, vy: rand(-80, 80), w: 16, h: 16 };
+        }
+        break;
+      }
+      case 'fisher': {
+        let vx = 0;
+        if (keys.ArrowLeft || keys.KeyA) vx = -1;
+        else if (keys.ArrowRight || keys.KeyD) vx = 1;
+        this.player.x = clamp(this.player.x + vx * spd * dt, 10, W - 36);
+        if (pressed.Space && !this.data.hookDown) { this.data.hookDown = true; beep(420, .06); }
+        if (this.data.hookDown) {
+          this.data.hookY += 340 * dt;
+          if (this.data.hookY > H - 30) this.data.hookDown = false;
+        } else this.data.hookY += (22 - this.data.hookY) * Math.min(1, dt * 4);
+        const hook = { x: this.player.x + 8, y: this.data.hookY, w: 12, h: 12 };
+        for (const e of this.ents) {
+          if (e.dead) continue;
+          e.x += (e.vx || 0) * dt;
+          if (e.x < 10 || e.x > W - 30) e.vx *= -1;
+          if (aabb(hook, e)) {
+            e.dead = true;
+            if (e.kind === 'fish') this.collect(e, 25, 2);
+            else { this.hurt(); this.data.hookDown = false; }
+          }
+        }
+        if (this.ents.filter(e => !e.dead && e.kind === 'fish').length < 5)
+          this.add('fish', rand(40, W - 60), rand(H - 110, H - 40), 26, 20, { vx: rand(-70, 70) });
+        break;
+      }
+      case 'gardener': {
+        for (const pl of this.data.plots) {
+          if (pl.state === 2) {
+            pl.t += dt;
+            if (pl.t > 3) { pl.state = 3; FX.burst(pl.x + 20, pl.y + 20, '#38c172', 6); }
+          } else if (pl.state === 4) {
+            pl.t += dt;
+            if (pl.t > 7) { pl.state = 0; this.hurt(); }
+          }
+        }
+        this.data.weedT -= dt;
+        if (this.data.weedT <= 0) {
+          this.data.weedT = Math.max(3.5, 7 / d.speed);
+          const free = this.data.plots.filter(pl => pl.state === 0);
+          if (free.length) { const pl = free[Math.floor(Math.random() * free.length)]; pl.state = 4; pl.t = 0; }
+        }
+        break;
+      }
+      case 'station': {
+        this.data.oxygen -= dt * (1 + .25 * (d.speed - 1));
+        if (this.data.oxygen <= 0) { this.data.oxygen = 16; this.hurt(); }
+        this.spawnT -= dt;
+        if (this.spawnT <= 0) {
+          this.spawnT = Math.max(.5, 1.4 / d.speed);
+          if (Math.random() < .6) this.add('energy', rand(40, W - 40), rand(40, H - 40));
+          else this.add('leak', rand(40, W - 40), rand(40, H - 40), 26, 26);
+        }
+        for (const e of this.ents) {
+          if (e.dead || e.kind !== 'leak') continue;
+          e.t = (e.t || 0) + dt;
+          if (e.t > 7) { e.dead = true; this.hurt(); }
+        }
+        break;
+      }
+      case 'royale': {
+        this.movePlayer(dt, spd * .95);
+        this.data.zone = Math.max(55, this.data.zone - 9 * dt * d.speed);
+        const cx = W / 2, cy = H / 2;
+        if (Math.hypot(this.player.x + 13 - cx, this.player.y + 13 - cy) > this.data.zone) this.hurt();
+        if (keys.Space && this.fireCd <= 0) {
+          this.fireCd = .35 / d.speed;
+          const bots = this.ents.filter(e => !e.dead && e.kind === 'bot');
+          bots.sort((a, b) => Math.hypot(a.x - this.player.x, a.y - this.player.y) -
+                              Math.hypot(b.x - this.player.x, b.y - this.player.y));
+          const bot = bots[0];
+          if (bot) {
+            const dx = bot.x - this.player.x, dy = bot.y - this.player.y, dd = Math.hypot(dx, dy) || 1;
+            this.bullets.push({ x: this.player.x + 13, y: this.player.y + 13, vx: dx / dd * 410, vy: dy / dd * 410, life: 1.2 });
+            beep(700, .04);
+          }
+        }
+        for (const e of this.ents) {
+          if (e.dead || e.kind !== 'bot') continue;
+          e.x += e.vx * dt; e.y += e.vy * dt;
+          if (e.x < 10 || e.x > W - 36) e.vx *= -1;
+          if (e.y < 10 || e.y > H - 36) e.vy *= -1;
+          if (Math.hypot(e.x + 13 - cx, e.y + 13 - cy) > this.data.zone) {
+            e.t = (e.t || 0) + dt;
+            if (e.t > 3) { e.dead = true; this.score += 50; this.count++; addCoins(2); }
+          }
+          if (aabb(e, this.player)) this.hurt();
+        }
+        for (const b of this.bullets) {
+          b.x += b.vx * dt; b.y += b.vy * dt;
+          for (const e of this.ents) {
+            if (e.dead || e.kind !== 'bot') continue;
+            if (aabb({ x: b.x - 5, y: b.y - 5, w: 10, h: 10 }, e)) {
+              e.dead = true; b.life = 0; this.score += 50; this.count++; addCoins(2);
+              FX.burst(e.x, e.y, '#ff6b81', 8);
+              if (this.count >= this.goal) this.win('Ты победил всех соперников! 👑');
+            }
+          }
+        }
+        break;
+      }
+    }
+    this.ents = this.ents.filter(e => !e.dead);
+    this.bullets = this.bullets.filter(b => b.life > 0 && b.x > -40 && b.x < W + 40 && b.y > -40 && b.y < H + 40);
+  }
+  draw(ctx) {
+    const motif = (this.kind === 'station' || this.kind === 'royale' || this.kind === 'airfight') ? 'stars'
+      : (this.kind === 'gardener' || this.kind === 'fisher' || this.kind === 'mazelava') ? 'leaves' : 'dots';
+    drawBackdrop(ctx, this.p, { motif });
+    if (this.kind === 'towerdef') {
+      ctx.save(); ctx.setLineDash([8, 8]); ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(255,255,255,.14)';
+      ctx.beginPath(); this.data.path.forEach((pt, i) => i ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1])); ctx.stroke(); ctx.restore();
+      for (const t of this.data.towers) drawEmoji(ctx, '🏹', t.x, t.y, 28);
+    }
+    if (this.kind === 'bomber') {
+      for (const b of this.data.bombs) {
+        const pulse = 1 + Math.sin(visualClock * 14) * .12;
+        drawEmoji(ctx, '💣', b.x + 12, b.y + 12, 24 * pulse);
+      }
+    }
+    if (this.kind === 'fisher') {
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(this.player.x + 13, 20); ctx.lineTo(this.player.x + 13, this.data.hookY); ctx.stroke(); ctx.restore();
+      drawEmoji(ctx, '🪝', this.player.x + 13, this.data.hookY, 20);
+    }
+    if (this.kind === 'gardener') {
+      for (const pl of this.data.plots) {
+        roundRect(ctx, pl.x, pl.y, 42, 42, 8);
+        ctx.fillStyle = pl.state === 2 ? '#7d5a3c' : '#9b6b45'; ctx.fill();
+        const em = ['', '🌰', '💧', '🌻', '🌿'][pl.state] || '';
+        if (em) drawEmoji(ctx, em, pl.x + 21, pl.y + 21, 26);
+      }
+    }
+    if (this.kind === 'station') {
+      const pct = clamp(this.data.oxygen / (this.limit || 60), 0, 1);
+      ctx.save();
+      roundRect(ctx, 22, 18, 240, 18, 9); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+      roundRect(ctx, 22, 18, 240 * pct, 18, 9); ctx.fillStyle = pct < .3 ? '#ff6b81' : '#38c172'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('КИСЛОРОД', 28, 32); ctx.restore();
+    }
+    if (this.kind === 'royale') {
+      ctx.save(); ctx.strokeStyle = '#ff6b81'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, this.data.zone, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    }
+    if (this.kind === 'hockey') {
+      const puck = this.data.puck;
+      drawEmoji(ctx, '🥅', 14, H / 2, 54); drawEmoji(ctx, '🥅', W - 14, H / 2, 54);
+      drawEmoji(ctx, '🧤', W - 37, this.data.aiY + 24, 38);
+      ctx.save(); ctx.fillStyle = '#1d2340'; ctx.beginPath();
+      ctx.arc(puck.x + 8, puck.y + 8, 9, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    for (const e of this.ents) {
+      if (e.dead) continue;
+      if (e.kind === 'wall' || e.kind === 'solid' || e.kind === 'brick') {
+        roundRect(ctx, e.x, e.y, e.w, e.h, 5);
+        ctx.fillStyle = e.kind === 'brick' ? '#b5653a' : shade(this.p.settings.bg, 48);
+        ctx.fill();
+        if (e.kind === 'brick') drawEmoji(ctx, '🧱', e.x + e.w / 2, e.y + e.h / 2, 18);
+        continue;
+      }
+      drawEmoji(ctx, MINI_EMOJI[e.kind] || '❓', e.x + e.w / 2, e.y + e.h / 2, e.w < 20 ? 18 : 26);
+    }
+    for (const b of this.bullets) {
+      ctx.save(); ctx.fillStyle = b.homing ? '#5ac8fa' : '#ffd166';
+      ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.homing ? 5 : 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    if (this.kind !== 'gardener' && this.kind !== 'station' && this.kind !== 'towerdef') {
+      if (this.invuln <= 0 || Math.floor(this.time * 12) % 2 === 0) {
+        drawEmoji(ctx, this.p.settings.hero, this.player.x + this.player.w / 2, this.player.y + this.player.h / 2, 28);
+      }
+    }
+  }
+  getHud() {
+    let progress = `🎯 ${this.count}/${this.goal}`;
+    if (this.kind === 'station') progress = `🫧 ${Math.ceil(this.data.oxygen)} с · 🎯 ${this.count}/${this.goal}`;
+    else if (this.kind === 'hockey') progress = `🏒 ${this.count}/${this.goal}`;
+    else if (this.limit) progress += ` · ⏱ ${Math.max(0, Math.ceil(this.limit - this.time))} с`;
+    return `<span class="hud-pill">♥ ${'♥'.repeat(Math.max(0, this.hearts))}</span>` +
+           `<span class="hud-pill">⭐ ${this.score}</span>` +
+           `<span class="hud-pill">🪙 ${getCoins()}</span>` +
+           `<span class="hud-pill">${progress}</span>`;
+  }
+}
+
 function makeEngine(p) {
   let e;
   if (p.template === 'platformer') e = new PlatformerEngine(p);
@@ -3422,8 +4189,23 @@ function makeEngine(p) {
   else if (p.template === 'brawl') e = new BrawlEngine(p);
   else if (p.template === 'zombie') e = new ZombieEngine(p);
   else if (p.template === 'rescue') e = new RescueEngine(p);
+  else if (MINI_IDS.includes(p.template)) e = new MiniEngine(p);
   else e = new QuizEngine(p, $('#interactiveLayer'));
-  e.onFinish = handleFinish;
+  normalizeProgress(p);
+  let rewarded = false;
+  const baseReset = e.reset.bind(e);
+  e.reset = () => { rewarded = false; baseReset(); };
+  const baseFinish = e.onFinish;
+  e.onFinish = (win, msg) => {
+    if (win && !rewarded) {
+      rewarded = true;
+      const first = !p.firstWin;
+      p.firstWin = true;
+      addCoins(10 + (first ? 10 : 0), first ? 'первая победа!' : 'победа!');
+      saveProject(true);
+    }
+    baseFinish(win, msg);
+  };
   return e;
 }
 
@@ -3501,6 +4283,7 @@ function openEditor(project) {
   Speech.stop();
   if (state.engine) state.engine.destroy();
   project.settings = Object.assign(createProject(project.template).settings, project.settings || {});
+  normalizeProgress(project);
   state.project = project;
   state.mode = 'edit';
   state.tool = 'wall';
@@ -3541,6 +4324,7 @@ function updateEditorHeader() {
 function updateChips() {
   const p = state.project;
   if (!p) return;
+  updateCoinChip();
   let n = 0;
   if (p.level && p.level.grid) n = p.level.grid.flat().filter(Boolean).length;
   if (p.template === 'quiz') n = p.questions.length;
@@ -3557,12 +4341,13 @@ function updateChips() {
       : p.template === 'duel' ? Math.max(40, (p.settings.lives || 3) * 30)
       : Math.max(3, Math.round((p.settings.count || 10) * (DIFF[p.settings.difficulty] || DIFF.normal).traffic));
   }
+  if (MINI_IDS.includes(p.template)) n = p.settings.target || 8;
   const genreLabels = {
     starraid: '👾 сбить', tank: '👾 подбить', range: '🎯 попасть', whack: '🐹 поймать',
     runner: '🏁 метров', reaction: '⚡ очков', defense: '👾 отразить', farm: '🌾 собрать',
     duel: '❤️ прочность', brawl: '🥊 боя', zombie: '🧟 победить', rescue: '🧒 спасти'
   };
-  const labels = Object.assign({
+  const labels = Object.assign({}, MINI_LABELS, {
     quiz: '❓ вопросов', racer: '🚗 поток', catcher: '🍎 поток', pong: '🏆 до победы',
     arkanoid: '🧱 кирпичей', shooter: '👾 пришельцев', tictactoe: '⭕ клеток',
     memory: '🃏 карточек', math: '🧮 примеров', snake: '⚡ скорость'
@@ -3579,6 +4364,7 @@ function setMode(mode) {
   $('#btnMode').textContent = playing ? '✏️ В редактор' : '▶ Играть';
   $('#btnMode').className = playing ? 'btn btn-accent' : 'btn btn-primary';
   $('#btnFullscreen').classList.toggle('hidden', !playing);
+  $('#btnShop').classList.toggle('hidden', !playing);
   if (!playing && isFullscreen()) exitFullscreen();
   $('#playHud').classList.toggle('hidden', !playing);
   $('#resultOverlay').classList.add('hidden');
@@ -3618,8 +4404,10 @@ function commonSettings(p) {
   const acPresets = ['#ffd166', '#ff9f43', '#38c172', '#5ac8fa', '#ff6b81', '#c792ea'];
   const genreLives = ['starraid', 'tank', 'whack', 'runner', 'defense', 'brawl', 'zombie', 'rescue'];
   const withRules = GENRE_IDS.includes(p.template) ||
+    MINI_IDS.includes(p.template) ||
     ['platformer', 'runnerhuman', 'collector', 'racer', 'catcher', 'snake', 'pong', 'arkanoid', 'shooter', 'math'].includes(p.template);
   const withLives = genreLives.includes(p.template) ||
+    MINI_IDS.includes(p.template) ||
     ['platformer', 'runnerhuman', 'collector', 'racer', 'catcher', 'arkanoid', 'shooter', 'math'].includes(p.template);
   let html = `
   <div class="tool-section">
@@ -3919,6 +4707,23 @@ function genreSection(p) {
     <p class="hint-mini">Сложность и скорость меняются выше, в разделе «Правила игры».</p>
   </div>`;
 }
+function miniSection(p) {
+  const label = MINI_LABELS[p.template] || '🎯 целей';
+  return `<div class="tool-section">
+    <h4 class="tool-title">🎯 Цель и время</h4>
+    <label class="field-label">${label}</label>
+    <div class="range-row">
+      <input type="range" id="fldTarget" min="2" max="20" step="1" value="${p.settings.target}">
+      <span class="range-value" id="targetVal">${p.settings.target}</span>
+    </div>
+    <label class="field-label" style="margin-top:14px">Время на игру, секунд</label>
+    <div class="range-row">
+      <input type="range" id="fldSeconds" min="20" max="150" step="5" value="${p.settings.seconds}">
+      <span class="range-value" id="secondsVal">${p.settings.seconds}</span>
+    </div>
+    <p class="hint-mini">За задания и победу ты получаешь 🪙 коины. Потрать их можно в магазине во время игры.</p>
+  </div>`;
+}
 function renderTools() {
   const p = state.project;
   if (!p) return;
@@ -3939,6 +4744,7 @@ function renderTools() {
   if (p.template === 'tictactoe') html += tictactoeSection(p);
   if (p.template === 'memory') html += memorySection(p);
   if (p.template === 'math') html += mathSection(p);
+  if (MINI_IDS.includes(p.template)) html += heroSection(p) + miniSection(p);
   $('#toolsPanel').innerHTML = html;
 }
 function renderProps() {
@@ -4004,6 +4810,12 @@ function renderProps() {
     html += `<div class="prop-card"><h4>📊 Настройки</h4>` +
       extraStats[p.template].map(([l, v]) => `<div class="stat-row"><span>${l}</span><b>${v}</b></div>`).join('') + `</div>`;
   }
+  html += `<div class="prop-card"><h4>🪙 Коины и магазин</h4>
+    <div class="stat-row"><span>Коинов в этой игре</span><b>${getCoins(p)} 🪙</b></div>
+    <div class="stat-row"><span>Цена предмета</span><b>${COIN_PRICE} 🪙</b></div>
+    <div class="stat-row"><span>За победу</span><b>+10 🪙</b></div>
+    <div class="stat-row"><span>Первая победа</span><b>ещё +10 🪙</b></div>
+  </div>`;
   html += `<div class="prop-card"><h4>💡 Полезные советы</h4><ul class="tip-list">${TIPS[p.template].map(t => `<li>${t}</li>`).join('')}</ul></div>`;
   $('#propsPanel').innerHTML = html;
 }
@@ -4022,10 +4834,10 @@ function openHelp() {
     <h3>📖 Как создать игру</h3>
     <p class="modal-sub">Всё просто — всего 5 шагов:</p>
     <ol class="modal-steps">
-      <li><b>Выбери шаблон</b>: всего 25 игр. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Плюс «Бегущий человек» (обби с огненными шарами), платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
+      <li><b>Выбери шаблон</b>: всего 35 игр. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Новые режимы: «Лавовый лабиринт», «Бомбовый квартал», «Защита крепости», «Гонка на выживание», «Воздушный бой», «Аркадный хоккей», «Ловля рыбы», «Волшебный сад», «Космическая станция», «Королевская битва». Плюс «Бегущий человек» (обби с огненными шарами), платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
       <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
-      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим.</li>
+      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим. Кнопка «🛒 Магазин» тратит коины этой игры на предметы.</li>
       <li><b>Сохрани или поделись</b>: «💾 Сохранить» — в браузере, «🌟 В галерею» — на общей странице, «🚀 Поделиться» — ссылка другу.</li>
     </ol>
     <p class="modal-sub">📱 На телефоне во время игры появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. В играх «Меткий тир», «Бей кротов», «Быстрая реакция», «Защита замка», «Умная ферма» и «Поединок героев» кнопки не нужны: просто нажимай пальцем прямо по полю.</p>
@@ -4081,6 +4893,7 @@ function importProject(obj) {
   const p = obj;
   p.id = uid();
   p.settings = Object.assign(createProject(obj.template).settings, p.settings || {});
+  normalizeProgress(p);
   p.name = String(p.name || 'Моя игра').slice(0, 40);
   p.createdAt = p.createdAt || Date.now();
   p.updatedAt = Date.now();
@@ -4191,6 +5004,22 @@ function bindEvents() {
 
   $('#modalRoot').addEventListener('click', e => {
     if (e.target.id === 'modalRoot') { closeModal(); return; }
+    const buy = e.target.closest('[data-buy]');
+    if (buy) {
+      const item = SHOP_ITEMS.find(x => x.id === buy.dataset.buy);
+      if (!item) return;
+      if (getCoins() < COIN_PRICE || !spendCoins(COIN_PRICE)) {
+        showToast('Не хватает коинов — собери 🪙 или выиграй!', 'warn');
+        return;
+      }
+      const p = state.project;
+      p.purchases[item.id] = (p.purchases[item.id] || 0) + 1;
+      if (state.engine && state.engine.buy) state.engine.buy(item.id);
+      saveProject(true);
+      showToast(`${item.em} ${item.title} — куплено!`, 'ok');
+      openShop();
+      return;
+    }
     const b = e.target.closest('[data-modal]');
     if (!b) return;
     if (b.dataset.modal === 'close') closeModal();
@@ -4220,6 +5049,7 @@ function bindEvents() {
     markDirty();
   });
   $('#btnMode').addEventListener('click', () => setMode(state.mode === 'play' ? 'edit' : 'play'));
+  $('#btnShop').addEventListener('click', () => { if (state.mode === 'play') openShop(); else showToast('Магазин откроется, когда начнёшь игру 🛒', 'warn'); });
   $('#resultOverlay').addEventListener('click', e => {
     const b = e.target.closest('[data-res]');
     if (!b) return;
