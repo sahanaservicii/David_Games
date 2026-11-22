@@ -80,6 +80,141 @@ function shade(hex, amt) {
   const b = clamp((n & 255) + amt, 0, 255);
   return `rgb(${r},${g},${b})`;
 }
+/* ---------- Общая графика: фоны, свечение, частицы ---------- */
+let visualClock = 0;
+function hash01(n) {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+const VISUAL_MOTIFS = {
+  platformer: 'stars', collector: 'bubbles', racer: 'road', quiz: 'question',
+  catcher: 'leaves', snake: 'dots', pong: 'dots', arkanoid: 'stars',
+  shooter: 'stars', tictactoe: 'dots', memory: 'stars', math: 'dots',
+  starraid: 'stars', tank: 'grid', range: 'dots', whack: 'leaves',
+  runner: 'road', reaction: 'dots', defense: 'grid', farm: 'leaves',
+  duel: 'dots', brawl: 'stars', zombie: 'leaves', rescue: 'leaves'
+};
+function drawBackdrop(ctx, p, opts = {}) {
+  const base = opts.top || (p && p.settings && p.settings.bg) || '#20234a';
+  const accent = opts.accent || (p && p.settings && p.settings.accent) || '#ffd166';
+  const motif = opts.motif || (p && VISUAL_MOTIFS[p.template]) || 'dots';
+  const bottom = opts.bottom || shade(base, -38);
+  const t = visualClock;
+  const g = ctx.createLinearGradient(0, 0, W * .35, H);
+  g.addColorStop(0, shade(base, 30));
+  g.addColorStop(.55, base);
+  g.addColorStop(1, bottom);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  const glows = [
+    [W * (.2 + .05 * Math.sin(t * .23)), H * .18, H * .55, accent, .13],
+    [W * (.82 + .04 * Math.cos(t * .19)), H * .82, H * .48, '#7cf3ff', .10],
+    [W * .55, H * (.15 + .05 * Math.sin(t * .31)), H * .42, '#ff7ad9', .07]
+  ];
+  for (const [x, y, r, col, a] of glows) {
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, col);
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.045)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.restore();
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const sx = hash01(i + 1) * W;
+    const speed = 8 + hash01(i + 51) * 22;
+    const raw = (hash01(i + 101) * H - t * speed) % (H + 60);
+    const y = raw < -30 ? raw + H + 60 : raw;
+    const r = 1.2 + hash01(i + 151) * 2.6;
+    ctx.globalAlpha = .10 + hash01(i + 201) * .18;
+    ctx.fillStyle = i % 3 === 0 ? accent : '#ffffff';
+    ctx.strokeStyle = ctx.fillStyle;
+    if (motif === 'bubbles') {
+      ctx.beginPath(); ctx.arc(sx, y, r * 2.4, 0, 7); ctx.lineWidth = 1; ctx.stroke();
+    } else if (motif === 'leaves') {
+      ctx.beginPath(); ctx.ellipse(sx, y, r * 3, r * 1.6, t * .2 + i, 0, 7); ctx.fill();
+    } else if (motif === 'road') {
+      ctx.fillRect(sx, y, 2, r * 5);
+    } else if (motif === 'question' || motif === 'dots') {
+      ctx.fillRect(sx, y, r * 2, r * 2);
+    } else {
+      ctx.beginPath(); ctx.arc(sx, y, r, 0, 7); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function drawSceneFinish(ctx) {
+  const vg = ctx.createRadialGradient(W / 2, H * .45, H * .18, W / 2, H * .5, H * .9);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(6,4,28,.26)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+  const sg = ctx.createLinearGradient(0, 0, 0, 80);
+  sg.addColorStop(0, 'rgba(255,255,255,.10)');
+  sg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, 0, W, 80);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.10)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, W - 2, H - 2);
+  ctx.restore();
+}
+const FX = {
+  parts: [],
+  clear() { this.parts.length = 0; },
+  burst(x, y, color, n = 14) {
+    for (let i = 0; i < n; i++) this.parts.push({
+      x, y, vx: rand(-140, 140), vy: rand(-180, 60),
+      life: rand(.35, .8), max: .8, size: rand(2, 5), color, grav: 260, conf: false
+    });
+  },
+  celebrate() {
+    const colors = ['#ffd166', '#ff6b81', '#7cf3ff', '#8affc1', '#c792ea', '#fff'];
+    for (let i = 0; i < 90; i++) this.parts.push({
+      x: rand(0, W), y: rand(-H * .4, 0), vx: rand(-45, 45), vy: rand(60, 190),
+      life: rand(1.6, 3.2), max: 3.2, size: rand(3, 7),
+      color: colors[i % colors.length], grav: 40, conf: true, rot: rand(0, 7), vr: rand(-6, 6)
+    });
+  },
+  update(dt) {
+    for (const q of this.parts) {
+      q.life -= dt;
+      q.vy += q.grav * dt;
+      q.x += q.vx * dt;
+      q.y += q.vy * dt;
+      if (q.conf) q.rot += q.vr * dt;
+    }
+    this.parts = this.parts.filter(q => q.life > 0 && q.y < H + 30);
+  },
+  draw(ctx) {
+    if (!this.parts.length) return;
+    ctx.save();
+    for (const q of this.parts) {
+      ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5);
+      ctx.fillStyle = q.color;
+      if (q.conf) {
+        ctx.save();
+        ctx.translate(q.x, q.y);
+        ctx.rotate(q.rot);
+        ctx.fillRect(-q.size, -q.size * .5, q.size * 2, q.size);
+        ctx.restore();
+      } else {
+        ctx.beginPath(); ctx.arc(q.x, q.y, q.size, 0, 7); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+};
+
 function aabb(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
@@ -888,8 +1023,7 @@ class GridEngine extends BaseEngine {
     }
   }
   drawStatic(ctx, showGrid) {
-    ctx.fillStyle = this.p.settings.bg;
-    ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
 
     ctx.save();
     ctx.globalAlpha = 0.13;
@@ -1239,8 +1373,7 @@ class RacerEngine extends BaseEngine {
   finish(win, msg) { this.finished = true; this.onFinish(win, msg); }
   draw(ctx) {
     const s = this.p.settings;
-    ctx.fillStyle = '#3ba55d';
-    ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { top: '#3ba55d', bottom: '#1f6b42', motif: 'road' });
     ctx.fillStyle = shade('#3ba55d', -24);
     for (let y = (this.dist * 3) % 64 - 64; y < H; y += 64) ctx.fillRect(0, y, 60, 32), ctx.fillRect(W - 60, y, 60, 32);
 
@@ -1347,11 +1480,7 @@ class QuizEngine extends BaseEngine {
   }
   update() {}
   draw(ctx) {
-    const g = ctx.createLinearGradient(0, 0, W, H);
-    g.addColorStop(0, this.p.settings.bg);
-    g.addColorStop(1, '#4a3aa8');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { accent: '#ffd166', motif: 'question' });
     ctx.save();
     ctx.globalAlpha = state.mode === 'edit' ? .18 : .1;
     ctx.font = 'bold 90px "Trebuchet MS", sans-serif';
@@ -1427,11 +1556,7 @@ class CatcherEngine extends BaseEngine {
   finish(win, msg) { this.finished = true; this.onFinish(win, msg); }
   draw(ctx) {
     const s = this.p.settings;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, s.bg);
-    g.addColorStop(1, shade(s.bg, 55));
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { accent: '#ffd166', motif: 'leaves' });
     drawEmoji(ctx, '☁️', 110, 70, 42);
     drawEmoji(ctx, '☁️', 650, 110, 34);
     drawEmoji(ctx, '🌳', 60, H - 30, 62);
@@ -1479,10 +1604,7 @@ class ArcadeEngine extends BaseEngine {
   constructor(p) { super(p); this.reset(); }
   finish(win, msg) { this.finished = true; this.onFinish(win, msg); }
   backdrop(ctx, top, bottom) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, top || this.p.settings.bg);
-    g.addColorStop(1, bottom || shade(this.p.settings.bg, 45));
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { top: top || undefined, bottom: bottom || undefined });
   }
 }
 
@@ -2226,7 +2348,7 @@ class StarRaidEngine extends GenreEngine {
     else if (this.time <= 0) this.finish(false, 'Время вышло');
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H); this.stars(ctx);
+    drawBackdrop(ctx, this.p); this.stars(ctx);
     for (const f of this.foes) drawEmoji(ctx, '👾', f.x, f.y, 34);
     ctx.fillStyle = this.p.settings.accent;
     for (const b of this.bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, 7); ctx.fill(); }
@@ -2427,7 +2549,7 @@ class BattleCityEngine extends GenreEngine {
     ctx.restore();
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = 'rgba(255,255,255,.03)';
     for (let r = 0; r < 14; r++) for (let c = 0; c < 25; c++)
       if ((r + c) % 2 === 0) ctx.fillRect(c * 32, r * 32, 32, 32);
@@ -2511,7 +2633,7 @@ class RangeEngine extends GenreEngine {
     } else { this.misses++; this.score = Math.max(0, this.score - 2); beep(200, .08); }
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.strokeStyle = 'rgba(255,255,255,.08)';
     for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
@@ -2566,7 +2688,7 @@ class WhackEngine extends GenreEngine {
     this.misses++; this.lives--; beep(180, .1);
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = 'rgba(90,200,120,.14)'; ctx.fillRect(0, 60, W, H - 60);
     for (const h of this.holes) {
       ctx.fillStyle = '#3a2b22'; ctx.beginPath(); ctx.ellipse(h.x, h.y, 68, 38, 0, 0, 7); ctx.fill();
@@ -2620,7 +2742,7 @@ class RunnerEngine extends GenreEngine {
     else if (this.lives <= 0) this.finish(false, 'Герой устал');
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = 'rgba(255,255,255,.06)';
     for (let i = 0; i < 6; i++) {
       ctx.beginPath(); ctx.arc((i * 220 - this.dist * 3) % (W + 300) - 100, H - 60, 90, Math.PI, 0); ctx.fill();
@@ -2668,7 +2790,7 @@ class ReactionEngine extends GenreEngine {
     }
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.textAlign = 'center';
     ctx.font = 'bold 22px "Trebuchet MS", sans-serif';
     ctx.fillText(this.phase === 'go' ? 'ЖМИ СКОРЕЕ!' : 'Жди зелёную кнопку…', W / 2, 62);
@@ -2731,7 +2853,7 @@ class DefenseEngine extends GenreEngine {
     } else showToast('Нужно 10 монет и свободное место', 'warn');
   }
   draw(ctx) {
-    ctx.fillStyle = '#4a8f57'; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { top: '#4a8f57', bottom: '#265c39', motif: 'grid' });
     ctx.fillStyle = '#6b5b4a'; ctx.fillRect(0, H / 2 - 45, W, 90);
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, H / 2 - 45, W, 3);
     for (const s of this.spots) {
@@ -2776,7 +2898,7 @@ class FarmEngine extends GenreEngine {
     } else if (p.stage === 3) { p.stage = 0; this.harvest++; this.score += 10; beep(920, .07); }
   }
   draw(ctx) {
-    ctx.fillStyle = '#79a85f'; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { top: '#79a85f', bottom: '#456f37', motif: 'leaves' });
     ctx.fillStyle = 'rgba(0,0,0,.08)';
     for (let i = 0; i < 20; i++) ctx.fillRect((i * 97) % W, (i * 53) % H, 4, 4);
     for (const p of this.plots) {
@@ -2838,7 +2960,7 @@ class DuelEngine extends GenreEngine {
     else if (this.hp <= 0) this.finish(false, 'Ты проиграл бой');
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(0, H - 110, W, 110);
     drawEmoji(ctx, '🧑', 180, 190, 110); drawEmoji(ctx, '👹', W - 180, 190, 110);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
@@ -2892,7 +3014,7 @@ class BrawlEngine extends GenreEngine {
     else if (this.time <= 0) this.finish(this.enemyHp < this.hp, 'Время боя вышло');
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = '#b86b3c'; roundRect(ctx, 40, H - 150, W - 80, 110, 16); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 3; ctx.stroke();
     drawEmoji(ctx, '🥊', this.hero.x, this.hero.y, 64);
@@ -2952,7 +3074,7 @@ class ZombieEngine extends GenreEngine {
     else if (this.time <= 0) this.finish(false, 'Время вышло');
   }
   draw(ctx) {
-    ctx.fillStyle = '#1c3525'; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p, { top: '#1c3525', bottom: '#0d1e18', motif: 'leaves' });
     for (let i = 0; i < 8; i++) drawEmoji(ctx, '🪦', (i * 113) % W, H - 30, 32);
     for (const f of this.foes) drawEmoji(ctx, '🧟', f.x, f.y, 40);
     ctx.fillStyle = this.p.settings.accent;
@@ -3010,7 +3132,7 @@ class RescueEngine extends GenreEngine {
     else if (this.time <= 0) this.finish(false, 'Время вышло');
   }
   draw(ctx) {
-    ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, this.p);
     ctx.fillStyle = 'rgba(90,200,120,.12)'; ctx.fillRect(0, 50, W, H - 50);
     for (let i = 0; i < 10; i++) drawEmoji(ctx, '🌳', (i * 97 + 30) % W, 80 + ((i * 61) % (H - 140)), 34);
     for (const f of this.friends) drawEmoji(ctx, '🧒', f.x, f.y, 42);
@@ -4086,17 +4208,28 @@ function bindEvents() {
 /* ---------- Главный цикл ---------- */
 const canvas = $('#gameCanvas');
 const ctx = canvas.getContext('2d');
-let lastTime = 0, hudAcc = 0;
+let lastTime = 0, hudAcc = 0, fxEngine = null, fxWasFinished = false;
 function loop(ts) {
   const dt = lastTime ? Math.min((ts - lastTime) / 1000, 0.05) : 0;
   lastTime = ts;
+  visualClock = ts / 1000;
   if (state.engine && state.project) {
+    if (state.engine !== fxEngine) {
+      fxEngine = state.engine;
+      fxWasFinished = !!state.engine.finished;
+      FX.clear();
+    }
+    if (state.engine.finished && !fxWasFinished) FX.celebrate();
+    fxWasFinished = !!state.engine.finished;
     if (state.mode === 'play') {
       state.engine.update(dt);
       hudAcc += dt;
       if (hudAcc > 0.15) { hudAcc = 0; $('#playHud').innerHTML = state.engine.getHud(); }
     }
+    FX.update(dt);
     state.engine.draw(ctx);
+    drawSceneFinish(ctx);
+    FX.draw(ctx);
   }
   for (const k in pressed) delete pressed[k];
   requestAnimationFrame(loop);
