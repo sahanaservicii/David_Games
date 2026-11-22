@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#6c4ce0">
   <title>ИгроЛаборатория — создай свою игру!</title>
-  <link rel="stylesheet" href="styles.css?v=30">
+  <link rel="stylesheet" href="styles.css?v=31">
 </head>
 <body>
   <div class="app-shell">
@@ -90,6 +90,18 @@
           </div>
         </div>
 
+        <div id="missionBar" class="mission-bar">
+          <div class="mission-icon">📋</div>
+          <div class="mission-main">
+            <div class="mission-line"><span>Задание:</span> <b id="missionText">Выиграй в этой игре</b></div>
+            <div class="mission-track"><div class="mission-fill" id="missionFill"></div></div>
+          </div>
+          <div class="mission-meta">
+            <span class="mission-count" id="missionCount">0 / 100</span>
+            <span class="mission-reward" id="missionReward">+4 🪙</span>
+          </div>
+        </div>
+
         <div id="editorGrid" class="editor-grid">
           <aside class="panel tools-panel">
             <div id="toolsPanel"></div>
@@ -152,6 +164,6 @@
   <div id="toast" role="status" aria-live="polite"></div>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=31"></script>
 </body>
 </html>

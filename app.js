@@ -26,6 +26,89 @@ const SHOP_ITEMS = [
   { id: 'bomb', em: '💣', title: 'Бомба против врагов', desc: 'Уничтожить всех врагов на поле' }
 ];
 
+
+/* ---------- Задания в верхней панели ---------- */
+const MISSION_REWARD = 4;
+const winMetric = e => (e && e.finished ? 1 : 0);
+const MISSION_DEFS = {
+  platformer:  { text: 'Собрать все звёзды и дойти до финиша', goal: e => (e && e.stars ? e.stars.length : 5), metric: e => (e.stars || []).filter(s => s.got).length },
+  runnerhuman: { text: 'Собрать все звёзды и дойти до финиша с огненными шарами', goal: e => (e && e.stars ? e.stars.length : 5), metric: e => (e.stars || []).filter(s => s.got).length },
+  collector:   { text: 'Собрать все звёзды и найти выход из лабиринта', goal: e => (e && e.stars ? e.stars.length : 7), metric: e => (e.stars || []).filter(s => s.got).length },
+  racer:       { text: 'Набрать 100 очков и прийти к финишу', goal: 100 },
+  quiz:        { text: 'Ответить правильно на вопросы викторины', goal: 50 },
+  catcher:     { text: 'Поймать яблоки и набрать 100 очков', goal: 100 },
+  snake:       { text: 'Вырасти и набрать 100 очков', goal: 100 },
+  pong:        { text: 'Выиграть матч в пинг-понг', goal: e => e.target || 7, metric: e => e.scoreP || 0 },
+  arkanoid:    { text: 'Разбить кирпичи и набрать 100 очков', goal: 100 },
+  shooter:     { text: 'Сбить пришельцев и набрать 100 очков', goal: 100 },
+  tictactoe:   { text: 'Выиграть партию в крестики-нолики', goal: 1, metric: e => e.wins || 0 },
+  memory:      { text: 'Найти все пары карточек', goal: e => e.pairs || 10, metric: e => e.matched || 0 },
+  math:        { text: 'Решить примеры и набрать 100 очков', goal: 100 },
+  starraid:    { text: 'Сбить 10 вражеских кораблей', goal: 100 },
+  tank:        { text: 'Пройти Батл Сити на 3 жизнях и уничтожить 20 танков', goal: 20, kills: 20, lives: 3, metric: e => e.hits || 0 },
+  range:       { text: 'Попасть по мишеням и набрать 100 очков', goal: 100 },
+  whack:       { text: 'Ударить кротов и набрать 100 очков', goal: 100 },
+  runner:      { text: 'Пробежать дистанцию и набрать 100 очков', goal: 100 },
+  reaction:    { text: 'Нажать вовремя и набрать 100 очков', goal: 100 },
+  defense:     { text: 'Отразить атаки и набрать 100 очков', goal: 100 },
+  farm:        { text: 'Собрать урожай и набрать 100 очков', goal: 100 },
+  duel:        { text: 'Победить в поединке героев', goal: 1, metric: winMetric },
+  brawl:       { text: 'Выиграть кулачный бой', goal: 1, metric: winMetric },
+  zombie:      { text: 'Обороняться и набрать 100 очков', goal: 100 },
+  rescue:      { text: 'Спасти друзей и набрать 100 очков', goal: 100 },
+  mazelava:    { text: 'Собрать ключи и выбраться из лабиринта', goal: 100 },
+  bomber:      { text: 'Взорвать кирпичи и найти выход', goal: 80 },
+  towerdef:    { text: 'Защитить крепость от всех волн', goal: 100 },
+  survival:    { text: 'Собрать канистры и финишировать', goal: 100 },
+  airfight:    { text: 'Сбить самолёты и набрать 100 очков', goal: 100 },
+  hockey:      { text: 'Забить шайбы и выиграть матч', goal: 100 },
+  fisher:      { text: 'Поймать рыбу и набрать 100 очков', goal: 100 },
+  gardener:    { text: 'Собрать урожай и набрать 100 очков', goal: 100 },
+  station:     { text: 'Починить станцию и собрать энергию', goal: 100 },
+  royale:      { text: 'Победить соперников и остаться в круге', goal: 100 }
+};
+function currentMission(p) {
+  const d = MISSION_DEFS[p && p.template];
+  return d ? Object.assign({ reward: MISSION_REWARD }, d)
+           : { text: 'Выиграть в этой игре', reward: MISSION_REWARD, goal: 1, metric: winMetric };
+}
+function missionGoal(def, e, p) {
+  return Math.max(1, typeof def.goal === 'function' ? def.goal(e, p) : def.goal);
+}
+function missionValue(def, e) {
+  if (!e) return 0;
+  const fn = def.metric || (x => x.score || 0);
+  const v = Number(fn(e)) || 0;
+  return Math.max(0, v);
+}
+function missionDone(p, e, win) {
+  if (!win || !p) return false;
+  const def = currentMission(p);
+  if (def.kills && (e.hits || 0) < def.kills) return false;
+  if (def.lives && (e.lives || 0) < def.lives) return false;
+  return missionValue(def, e) >= missionGoal(def, e, p);
+}
+function renderMission() {
+  const bar = $('#missionBar');
+  if (!bar || !state.project) return;
+  const p = state.project, def = currentMission(p), e = state.engine;
+  const goal = missionGoal(def, e, p), val = Math.min(goal, missionValue(def, e));
+  const done = !!(p.missions && p.missions[p.template]);
+  $('#missionText').textContent = def.text;
+  $('#missionCount').textContent = `${val} / ${goal}`;
+  $('#missionFill').style.width = (goal ? val / goal * 100 : 0) + '%';
+  $('#missionReward').textContent = done ? '✔ Выполнено' : `+${def.reward} 🪙`;
+  bar.classList.toggle('done', done);
+  bar.classList.toggle('playing', state.mode === 'play');
+}
+function missionHudHtml() {
+  if (!state.project || !state.engine) return '';
+  const def = currentMission(state.project), e = state.engine;
+  const goal = missionGoal(def, e, state.project), val = Math.min(goal, missionValue(def, e));
+  const done = !!(state.project.missions && state.project.missions[state.project.template]);
+  return `<span class="hud-pill mission-hud">${done ? '✔' : '📋'} ${def.text} · ${val}/${goal}</span>`;
+}
+
 const DIFF = {
   easy:   { speed: 0.92, traffic: 0.85, time: 78, quizTime: 18, label: 'Лёгкая' },
   normal: { speed: 1.18, traffic: 1.25, time: 48, quizTime: 13, label: 'Средняя' },
@@ -1055,13 +1138,14 @@ function createProject(templateId) {
   p.coins = 0;
   p.firstWin = false;
   p.purchases = {};
+  p.missions = {};
   const extras = {
     runnerhuman: { hero: '🧑' },
     snake:     { snakeColor: '#38c172', food: '🍎' },
     pong:      { paddle: '#5ac8fa', target: 7 },
     arkanoid:  { rows: 5, paddleColor: '#ffd166' },
     shooter:   { ship: '🚀', fireRate: 1 },
-    tank:      { layout: 1 },
+    tank:      { layout: 1, lives: 3 },
     tictactoe: { smart: 'hard', first: false, mark: '❌' },
     memory:    { pairs: 10, deck: 'animals' },
     mazelava:  { target: 6, seconds: 60, hero: '🔦' },
@@ -1079,6 +1163,7 @@ function createProject(templateId) {
   if (extras[templateId]) Object.assign(p.settings, extras[templateId]);
   if (GENRE_IDS.includes(templateId)) {
     Object.assign(p.settings, { speed: 1, lives: 2, count: 10, seconds: 60, target: 10, hero: '🚀' });
+    if (extras[templateId]) Object.assign(p.settings, extras[templateId]);
   }
   if (templateId === 'platformer') p.level = defaultPlatformerLevel();
   if (templateId === 'runnerhuman') p.level = defaultRunnerHumanLevel();
@@ -1146,9 +1231,14 @@ function markDirty() {
 /* ---------- Коины и магазин ---------- */
 function normalizeProgress(p) {
   if (!p) return;
+  if (p.template === 'tank' && p.settings) {
+    p.settings.lives = Math.max(3, Number(p.settings.lives) || 3);
+    p.settings.count = Math.max(20, Number(p.settings.count) || 20);
+  }
   p.coins = Math.max(0, Math.floor(Number(p.coins) || 0));
   p.firstWin = !!p.firstWin;
   p.purchases = (p.purchases && typeof p.purchases === 'object') ? p.purchases : {};
+  p.missions = (p.missions && typeof p.missions === 'object') ? p.missions : {};
 }
 function getCoins(p = state.project) { return p ? Math.max(0, Math.floor(Number(p.coins) || 0)) : 0; }
 function updateCoinChip() {
@@ -2774,7 +2864,7 @@ class MathEngine extends ArcadeEngine {
 class GenreEngine extends ArcadeEngine {
   get dm() { return DIFF[this.p.settings.difficulty] || DIFF.normal; }
   get spd() { return (this.p.settings.speed || 1) * this.dm.speed; }
-  get goal() { return Math.max(3, Math.round((this.p.settings.count || 10) * this.dm.traffic)); }
+  get goal() { return this.p.template === 'tank' ? 20 : Math.max(3, Math.round((this.p.settings.count || 10) * this.dm.traffic)); }
   get limit() { return Math.round((this.p.settings.seconds || 60) * this.dm.time / 60); }
   pill(icon, value) { return `<span class="hud-pill">${icon} ${value}</span>`; }
   heartHud() { return this.pill('♥', '♥'.repeat(Math.max(0, this.lives))); }
@@ -4164,6 +4254,7 @@ class MiniEngine extends BaseEngine {
 }
 
 function makeEngine(p) {
+  normalizeProgress(p);
   let e;
   if (p.template === 'platformer') e = new PlatformerEngine(p);
   else if (p.template === 'runnerhuman') e = new RunnerHumanEngine(p);
@@ -4202,7 +4293,13 @@ function makeEngine(p) {
       const first = !p.firstWin;
       p.firstWin = true;
       addCoins(10 + (first ? 10 : 0), first ? 'первая победа!' : 'победа!');
+      const mission = currentMission(p);
+      if (!p.missions[p.template] && missionDone(p, e, true)) {
+        p.missions[p.template] = true;
+        addCoins(mission.reward, 'задание выполнено! 📋');
+      }
       saveProject(true);
+      renderMission();
     }
     baseFinish(win, msg);
   };
@@ -4300,6 +4397,7 @@ function openEditor(project) {
   renderTools();
   renderProps();
   updateChips();
+  renderMission();
   showScreen('editor');
 }
 function goGallery() {
@@ -4365,6 +4463,7 @@ function setMode(mode) {
   $('#btnMode').className = playing ? 'btn btn-accent' : 'btn btn-primary';
   $('#btnFullscreen').classList.toggle('hidden', !playing);
   $('#btnShop').classList.toggle('hidden', !playing);
+  renderMission();
   if (!playing && isFullscreen()) exitFullscreen();
   $('#playHud').classList.toggle('hidden', !playing);
   $('#resultOverlay').classList.add('hidden');
@@ -4375,7 +4474,7 @@ function setMode(mode) {
   state.engine.reset();
   state.engine.setPlaying(playing);
   if (playing) {
-    $('#playHud').innerHTML = state.engine.getHud();
+    $('#playHud').innerHTML = missionHudHtml() + state.engine.getHud();
     if (state.project.settings.narrate && !state.project.settings.voice) Speech.speak(rulesText(state.project));
     Voice.start();
     if (state.project.settings.voice && !Voice.supported()) showToast('Голос доступен в Chrome и Edge', 'warn');
@@ -4837,7 +4936,7 @@ function openHelp() {
       <li><b>Выбери шаблон</b>: всего 35 игр. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Новые режимы: «Лавовый лабиринт», «Бомбовый квартал», «Защита крепости», «Гонка на выживание», «Воздушный бой», «Аркадный хоккей», «Ловля рыбы», «Волшебный сад», «Космическая станция», «Королевская битва». Плюс «Бегущий человек» (обби с огненными шарами), платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
       <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
-      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим. Кнопка «🛒 Магазин» тратит коины этой игры на предметы.</li>
+      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим. Кнопка «🛒 Магазин» тратит коины этой игры на предметы. Вверху показано задание игры: выполни его и получи награду коинами.</li>
       <li><b>Сохрани или поделись</b>: «💾 Сохранить» — в браузере, «🌟 В галерею» — на общей странице, «🚀 Поделиться» — ссылка другу.</li>
     </ol>
     <p class="modal-sub">📱 На телефоне во время игры появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. В играх «Меткий тир», «Бей кротов», «Быстрая реакция», «Защита замка», «Умная ферма» и «Поединок героев» кнопки не нужны: просто нажимай пальцем прямо по полю.</p>
@@ -5311,7 +5410,7 @@ function loop(ts) {
     if (state.mode === 'play') {
       state.engine.update(dt);
       hudAcc += dt;
-      if (hudAcc > 0.15) { hudAcc = 0; $('#playHud').innerHTML = state.engine.getHud(); }
+      if (hudAcc > 0.15) { hudAcc = 0; $('#playHud').innerHTML = missionHudHtml() + state.engine.getHud(); renderMission(); }
     }
     FX.update(dt);
     state.engine.draw(ctx);
