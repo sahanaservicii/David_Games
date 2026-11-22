@@ -11,6 +11,8 @@ const COLS = 25, ROWS = 14, CELL = 32;
 const W = COLS * CELL, H = ROWS * CELL;
 const STORAGE_KEY = 'igrolab.projects.v1';
 const PUB_KEY = 'igrolab.published.v1';
+const WALLET_KEY = 'igrolab.wallet.v1';
+let walletCoins = 0;
 
 const keys = Object.create(null);
 const pressed = Object.create(null);
@@ -1196,6 +1198,26 @@ function createProject(templateId) {
 }
 
 /* ---------- Хранилище ---------- */
+function saveWallet() {
+  try { localStorage.setItem(WALLET_KEY, String(walletCoins)); } catch (e) { /* ignored */ }
+}
+function initWallet() {
+  const raw = localStorage.getItem(WALLET_KEY);
+  if (raw !== null) {
+    walletCoins = Math.max(0, Math.floor(Number(raw) || 0));
+    return;
+  }
+  const list = loadProjects();
+  walletCoins = list.reduce((sum, p) => sum + Math.max(0, Math.floor(Number(p.coins) || 0)), 0);
+  let changed = false;
+  list.forEach(p => {
+    if (Math.max(0, Math.floor(Number(p.coins) || 0)) > 0) { p.coins = 0; changed = true; }
+  });
+  if (changed) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* ignored */ }
+  }
+  saveWallet();
+}
 function loadProjects() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -1263,48 +1285,38 @@ function normalizeProgress(p) {
   p.purchases = (p.purchases && typeof p.purchases === 'object') ? p.purchases : {};
   p.missions = (p.missions && typeof p.missions === 'object') ? p.missions : {};
 }
-function getCoins(p = state.project) { return p ? Math.max(0, Math.floor(Number(p.coins) || 0)) : 0; }
-function getTotalCoins() {
-  return loadProjects().reduce((sum, p) => sum + getCoins(p), 0);
-}
+function getCoins() { return walletCoins; }
+function getTotalCoins() { return walletCoins; }
 function updateCoinChip() {
   const el = $('#coinChip');
   if (!el) return;
-  if (state.project) {
-    el.textContent = '🪙 ' + getCoins();
-    el.title = 'Коины в открытой игре';
-  } else {
-    el.textContent = '🪙 ' + getTotalCoins();
-    el.title = 'Всего коинов во всех сохранённых играх';
-  }
+  el.textContent = '🪙 ' + walletCoins;
+  el.title = 'Общие коины для всех игр';
 }
 function addCoins(n, reason) {
-  const p = state.project;
-  if (!p || !n) return;
-  normalizeProgress(p);
-  p.coins = getCoins(p) + Math.max(0, Math.floor(n));
+  if (!n) return;
+  walletCoins += Math.max(0, Math.floor(n));
+  saveWallet();
   updateCoinChip();
   if (reason) showToast(`🪙 +${n} — ${reason}`, 'ok');
-  markDirty();
 }
 function spendCoins(n) {
-  const p = state.project;
-  if (!p || getCoins(p) < n) return false;
-  p.coins = getCoins(p) - n;
+  if (!state.project || walletCoins < n) return false;
+  walletCoins -= n;
+  saveWallet();
   updateCoinChip();
-  markDirty();
   return true;
 }
 function openShop() {
   const p = state.project;
   if (!p) return;
   normalizeProgress(p);
-  const coins = getCoins(p);
+  const coins = getCoins();
   const mini = typeof MINI_IDS !== 'undefined' && MINI_IDS.includes(p.template);
   const items = SHOP_ITEMS.filter(it => !it.miniOnly || mini);
   openModal(`
     <h3>🛒 Магазин предметов</h3>
-    <p class="modal-sub">Коины даются за 🪙 и 💎, а также за победы. Каждый предмет стоит ${COIN_PRICE} 🪙. Покупка действует в этой игре.</p>
+    <p class="modal-sub">Коины общие для всех игр: их можно тратить в любом магазине. Каждый предмет стоит ${COIN_PRICE} 🪙, сама покупка действует в этой игре.</p>
     <div class="coin-balance">🪙 <b>${coins}</b> коинов</div>
     <div class="shop-grid">${items.map(it => `
       <button class="shop-item ${coins < COIN_PRICE ? 'poor' : ''}" data-buy="${it.id}" ${coins < COIN_PRICE ? 'disabled' : ''}>
@@ -4369,7 +4381,7 @@ function renderPublished() {
     const date = new Date(p.publishedAt || p.updatedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short' });
     return `<article class="card published-card" style="--tpl:${t.color}">
       <div class="card-emoji">${t.emoji}</div>
-      <span class="card-tag">${t.tag} · 🪙 ${getCoins(p)} · ${date}</span>
+      <span class="card-tag">${t.tag} · ${date}</span>
       <h4>${esc(p.name)}</h4>
       <div class="saved-actions">
         <button class="btn btn-small btn-primary" data-pub-open="${esc(p.id)}">▶ Открыть</button>
@@ -4391,7 +4403,7 @@ function renderSaved() {
     const date = new Date(p.updatedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     return `<article class="card saved-card" style="--tpl:${t.color}">
       <div class="card-emoji">${t.emoji}</div>
-      <span class="card-tag">${t.tag} · 🪙 ${getCoins(p)}</span>
+      <span class="card-tag">${t.tag}</span>
       <h4>${esc(p.name)}</h4>
       <div class="saved-date">🕒 ${date}</div>
       <div class="saved-actions">
@@ -4945,7 +4957,7 @@ function renderProps() {
       extraStats[p.template].map(([l, v]) => `<div class="stat-row"><span>${l}</span><b>${v}</b></div>`).join('') + `</div>`;
   }
   html += `<div class="prop-card"><h4>🪙 Коины и магазин</h4>
-    <div class="stat-row"><span>Коинов в этой игре</span><b>${getCoins(p)} 🪙</b></div>
+    <div class="stat-row"><span>Общих коинов</span><b>${getCoins()} 🪙</b></div>
     <div class="stat-row"><span>Цена предмета</span><b>${COIN_PRICE} 🪙</b></div>
     <div class="stat-row"><span>За победу</span><b>+10 🪙</b></div>
     <div class="stat-row"><span>Первая победа</span><b>ещё +10 🪙</b></div>
@@ -5028,6 +5040,7 @@ function importProject(obj) {
   p.id = uid();
   p.settings = Object.assign(createProject(obj.template).settings, p.settings || {});
   normalizeProgress(p);
+  p.coins = 0;
   p.name = String(p.name || 'Моя игра').slice(0, 40);
   p.createdAt = p.createdAt || Date.now();
   p.updatedAt = Date.now();
@@ -5463,6 +5476,7 @@ function loop(ts) {
 }
 
 /* ---------- Запуск ---------- */
+initWallet();
 renderGallery();
 updateCoinChip();
 bindEvents();
