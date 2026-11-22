@@ -393,11 +393,11 @@ const TEMPLATES = {
     hint: '💡 ← → или A D — руль, Пробел — стрельба. Сбивай 👾 и не дай им долететь до низа.'
   },
   tank: {
-    id: 'tank', title: 'Танковый бой', emoji: '🛡️', color: '#e6f3df',
-    tag: 'Шутер', desc: 'Веди танк по полю и стреляй во врагов. Танк поворачивается туда, куда ты едешь!',
-    features: ['Вид сверху', 'Стрельба в сторону движения', 'Враги со всех сторон'],
-    canvasTitle: 'Настройка боя', canvasSubtitle: 'Настрой скорость танка, жизни и цель по очкам',
-    hint: '💡 Стрелки или WASD — езда, Пробел — выстрел. Разбей вражеские танки 👾.'
+    id: 'tank', title: 'Батл Сити', emoji: '🛡️', color: '#e6f3df',
+    tag: 'Танки', desc: 'Настоящий Battle City! Веди танк по лабиринту, разрушай кирпичные стены и защищай базу 🦅 от вражеских танков.',
+    features: ['Лабиринт из стен', 'База, которую нужно беречь', 'Три карты боя'],
+    canvasTitle: 'Настройка Батл Сити', canvasSubtitle: 'Выбери карту, скорость танка, жизни и сколько врагов уничтожить',
+    hint: '💡 Стрелки или WASD — езда и поворот башни, Пробел — выстрел. Не дай врагам разрушить базу 🦅 внизу поля!'
   },
   range: {
     id: 'range', title: 'Меткий тир', emoji: '🎯', color: '#fff0df',
@@ -544,9 +544,9 @@ const TIPS = {
     'Каждый сбитый враг даёт 10 очков — набери свою цель!'
   ],
   tank: [
-    'Танк стреляет в ту сторону, куда ты едешь.',
-    'Не стой на месте — враги приходят со всех сторон.',
-    'Защита полезнее скорости, если врагов много.'
+    'Главное — беречь базу 🦅 внизу поля: враги стреляют по ней.',
+    'Кирпичные стены можно пробить, а стальные — нет. Пробивай проходы сам.',
+    'Стреляй первым: пока враг едет к базе, его уже можно подбить.'
   ],
   range: [
     'Целься в центр мишени — так попасть легче.',
@@ -727,6 +727,7 @@ function createProject(templateId) {
     pong:      { paddle: '#5ac8fa', target: 5 },
     arkanoid:  { rows: 4, paddleColor: '#ffd166' },
     shooter:   { ship: '🚀', fireRate: 1 },
+    tank:      { layout: 1 },
     tictactoe: { smart: 'normal', first: true, mark: '❌' },
     memory:    { pairs: 6, deck: 'animals' },
     math:      { ops: ['+', '-'], count: 8, seconds: 12 }
@@ -2235,76 +2236,247 @@ class StarRaidEngine extends GenreEngine {
   getHud() { return this.goalHud('👾') + this.scoreHud() + this.heartHud() + this.timeHud(); }
 }
 
-/* ---------- Шутер 2: Танковый бой ---------- */
-class TankEngine extends GenreEngine {
+/* ---------- Шутер 2: Батл Сити (Battle City) ---------- */
+class BattleCityEngine extends GenreEngine {
   reset() {
-    this.score = 0; this.lives = this.p.settings.lives || 3; this.hits = 0;
+    this.score = 0; this.hits = 0; this.lives = this.p.settings.lives || 3;
     this.time = this.limit; this.finished = false;
-    this.tank = { x: W / 2, y: H / 2, a: 0 };
-    this.bullets = []; this.foes = []; this.spawn = 1; this.fire = 0;
+    this.grid = this.buildGrid(this.p.settings.layout || 1);
+    this.base = { x: 400, y: 432, alive: true };
+    this.player = this.makeTank(304, 400, 'up', 'player');
+    this.player.inv = 1.2;
+    this.foes = []; this.bullets = [];
+    this.spawn = .8; this.fire = 0;
+    this.maxFoes = 4;
+  }
+  buildGrid(layout) {
+    const g = Array.from({ length: 14 }, () => Array(25).fill(0));
+    const put = (c, r, t) => { if (r >= 0 && r < 14 && c >= 0 && c < 25) g[r][c] = t; };
+    const rect = (c1, r1, c2, r2, t) => {
+      for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) put(c, r, t);
+    };
+    if (layout === 1) {
+      rect(2, 2, 4, 3, 1); rect(9, 2, 11, 2, 1); rect(13, 2, 15, 2, 1); rect(20, 2, 22, 3, 1);
+      rect(6, 4, 6, 5, 2); rect(18, 4, 18, 5, 2);
+      rect(2, 6, 4, 7, 1); rect(10, 6, 14, 6, 1); rect(20, 6, 22, 7, 1);
+      rect(1, 9, 2, 10, 3); rect(22, 9, 23, 10, 3);
+      rect(7, 9, 8, 10, 4); rect(16, 9, 17, 10, 4);
+      rect(11, 8, 13, 8, 1);
+    } else if (layout === 2) {
+      rect(1, 2, 3, 2, 2); rect(21, 2, 23, 2, 2);
+      rect(5, 2, 5, 4, 1); rect(19, 2, 19, 4, 1);
+      rect(8, 3, 10, 3, 1); rect(14, 3, 16, 3, 1);
+      rect(2, 5, 6, 5, 1); rect(18, 5, 22, 5, 1);
+      rect(8, 6, 8, 8, 3); rect(16, 6, 16, 8, 3);
+      rect(11, 5, 13, 5, 2);
+      rect(4, 9, 6, 10, 4); rect(18, 9, 20, 10, 4);
+    } else {
+      rect(3, 2, 7, 2, 1); rect(17, 2, 21, 2, 1);
+      rect(3, 3, 3, 5, 1); rect(21, 3, 21, 5, 1);
+      rect(6, 4, 10, 4, 2); rect(14, 4, 18, 4, 2);
+      rect(11, 3, 13, 3, 1);
+      rect(1, 7, 4, 7, 3); rect(20, 7, 23, 7, 3);
+      rect(8, 7, 10, 8, 1); rect(14, 7, 16, 8, 1);
+      rect(6, 10, 7, 10, 4); rect(17, 10, 18, 10, 4);
+    }
+    rect(12, 12, 12, 12, 1); rect(11, 13, 11, 13, 1); rect(13, 13, 13, 13, 1);
+    return g;
+  }
+  makeTank(x, y, dir, kind) {
+    return {
+      x, y, dir, kind, hp: kind === 'armored' ? 2 : 1,
+      speed: kind === 'fast' ? 108 : 74,
+      cool: rand(.5, 1.3), turn: rand(.6, 1.4)
+    };
+  }
+  tile(c, r) {
+    if (c < 0 || c >= 25 || r < 0 || r >= 14) return 2;
+    return this.grid[r][c];
+  }
+  dirVec(d) {
+    return d === 'up' ? [0, -1] : d === 'down' ? [0, 1] : d === 'left' ? [-1, 0] : [1, 0];
+  }
+  canMove(x, y, self) {
+    if (x < 16 || x > W - 16 || y < 16 || y > H - 16) return false;
+    for (const dx of [-12, 12]) for (const dy of [-12, 12]) {
+      const t = this.tile(Math.floor((x + dx) / 32), Math.floor((y + dy) / 32));
+      if (t === 1 || t === 2 || t === 3) return false;
+    }
+    if (this.base.alive && Math.abs(x - this.base.x) < 32 && Math.abs(y - this.base.y) < 32) return false;
+    for (const t of this.foes.concat([this.player])) {
+      if (t && t !== self && Math.hypot(t.x - x, t.y - y) < 27) return false;
+    }
+    return true;
+  }
+  moveTank(t, dt) {
+    const [dx, dy] = this.dirVec(t.dir);
+    const nx = t.x + dx * t.speed * this.spd * dt;
+    const ny = t.y + dy * t.speed * this.spd * dt;
+    if (this.canMove(nx, ny, t)) { t.x = nx; t.y = ny; return true; }
+    return false;
+  }
+  shoot(t, friend) {
+    const [dx, dy] = this.dirVec(t.dir);
+    this.bullets.push({ x: t.x + dx * 20, y: t.y + dy * 20,
+      vx: dx * 340, vy: dy * 340, friend, life: 1.5 });
+    beep(friend ? 720 : 420, .04);
+  }
+  killPlayer() {
+    this.lives--; beep(150, .18);
+    if (this.lives <= 0) return;
+    this.player = this.makeTank(304, 400, 'up', 'player');
+    this.player.inv = 1.6;
   }
   update(dt) {
     if (this.finished) return;
-    const t = this.tank, s = 210 * this.spd;
-    let dx = 0, dy = 0;
-    if (keys.ArrowLeft || keys.KeyA) dx--;
-    if (keys.ArrowRight || keys.KeyD) dx++;
-    if (keys.ArrowUp || keys.KeyW) dy--;
-    if (keys.ArrowDown || keys.KeyS) dy++;
-    if (dx || dy) {
-      const l = Math.hypot(dx, dy); dx /= l; dy /= l;
-      t.a = Math.atan2(dy, dx); t.x += dx * s * dt; t.y += dy * s * dt;
-    }
-    t.x = clamp(t.x, 26, W - 26); t.y = clamp(t.y, 50, H - 30);
+    const p = this.player;
+    p.inv = Math.max(0, p.inv - dt);
+    let d = null;
+    if (keys.ArrowUp || keys.KeyW) d = 'up';
+    else if (keys.ArrowDown || keys.KeyS) d = 'down';
+    else if (keys.ArrowLeft || keys.KeyA) d = 'left';
+    else if (keys.ArrowRight || keys.KeyD) d = 'right';
+    if (d) { p.dir = d; this.moveTank(p, dt); }
     this.fire -= dt;
-    if ((pressed.Space || keys.Space) && this.fire <= 0) {
-      this.bullets.push({ x: t.x + Math.cos(t.a) * 28, y: t.y + Math.sin(t.a) * 28,
-        vx: Math.cos(t.a) * 430, vy: Math.sin(t.a) * 430, life: 1.6 });
-      this.fire = .28; beep(700, .05);
+    if ((pressed.Space || keys.Space) && this.fire <= 0 &&
+        this.bullets.filter(b => b.friend).length < 2) {
+      this.shoot(p, true); this.fire = .32 / this.spd;
     }
-    for (const b of this.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; }
-    this.bullets = this.bullets.filter(b => b.life > 0 && b.x > 0 && b.x < W && b.y > 0 && b.y < H);
+    if (p.inv <= 0 && this.foes.some(f => !f.dead && Math.hypot(f.x - p.x, f.y - p.y) < 26)) this.killPlayer();
+
     this.spawn -= dt;
-    if (this.spawn <= 0) {
-      const side = Math.floor(rand(0, 4));
-      this.foes.push(side === 0 ? { x: rand(30, W - 30), y: 20 } :
-        side === 1 ? { x: rand(30, W - 30), y: H - 20 } :
-        side === 2 ? { x: 20, y: rand(50, H - 30) } : { x: W - 20, y: rand(50, H - 30) });
-      this.spawn = rand(1.1, 2) / this.dm.traffic;
+    const alive = this.foes.filter(f => !f.dead).length;
+    if (this.spawn <= 0 && alive < this.maxFoes && this.hits + alive < this.goal) {
+      const c = [0, 12, 24][Math.floor(rand(0, 3))];
+      const r = Math.random();
+      const kind = r < .18 ? 'armored' : r < .45 ? 'fast' : 'basic';
+      const f = this.makeTank(c * 32 + 16, 16, 'down', kind);
+      if (this.canMove(f.x, f.y, f)) this.foes.push(f);
+      this.spawn = rand(1.4, 2.6) / this.dm.traffic;
     }
     for (const f of this.foes) {
-      const a = Math.atan2(t.y - f.y, t.x - f.x);
-      f.x += Math.cos(a) * 55 * this.spd * dt; f.y += Math.sin(a) * 55 * this.spd * dt;
-      if (Math.hypot(f.x - t.x, f.y - t.y) < 28) { f.dead = true; this.lives--; beep(170, .18); }
-      for (const b of this.bullets) {
-        if (!b.dead && !f.dead && Math.hypot(b.x - f.x, b.y - f.y) < 24) {
-          b.dead = true; f.dead = true; this.hits++; this.score += 10; beep(500, .07); break;
+      if (f.dead) continue;
+      const [vx, vy] = this.dirVec(f.dir);
+      f.turn -= dt;
+      if (f.turn <= 0 || !this.canMove(f.x + vx * 22, f.y + vy * 22, f)) {
+        const opts = ['up', 'down', 'left', 'right'].filter(dir => {
+          const [ax, ay] = this.dirVec(dir);
+          return this.canMove(f.x + ax * 22, f.y + ay * 22, f);
+        });
+        if (opts.includes('down') && Math.random() < .55) f.dir = 'down';
+        else if (opts.length) f.dir = opts[Math.floor(rand(0, opts.length))];
+        f.turn = rand(.7, 1.5);
+      }
+      this.moveTank(f, dt);
+      if (this.base.alive && Math.abs(f.x - this.base.x) < 34 && Math.abs(f.y - this.base.y) < 34) {
+        this.base.alive = false; beep(120, .4);
+      }
+      f.cool -= dt;
+      if (f.cool <= 0) { this.shoot(f, false); f.cool = rand(.9, 1.9) / this.dm.traffic; }
+    }
+
+    for (const b of this.bullets) {
+      b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+      if (b.x < 4 || b.x > W - 4 || b.y < 4 || b.y > H - 4) { b.dead = true; continue; }
+      const c = Math.floor(b.x / 32), r = Math.floor(b.y / 32);
+      const tile = this.tile(c, r);
+      if (tile === 1) { this.grid[r][c] = 0; b.dead = true; beep(300, .03); continue; }
+      if (tile === 2) { b.dead = true; beep(220, .03); continue; }
+      if (this.base.alive && Math.abs(b.x - this.base.x) < 18 && Math.abs(b.y - this.base.y) < 18) {
+        b.dead = true;
+        if (!b.friend) { this.base.alive = false; beep(120, .4); }
+        continue;
+      }
+      const targets = b.friend ? this.foes : [this.player];
+      for (const t of targets) {
+        if (b.dead || !t || t.dead || t.inv > 0) continue;
+        if (Math.hypot(b.x - t.x, b.y - t.y) < 16) {
+          b.dead = true; t.hp--;
+          if (t.hp <= 0) {
+            t.dead = true;
+            if (b.friend) { this.hits++; this.score += 10; beep(520, .08); }
+            else this.killPlayer();
+          } else beep(340, .06);
+          break;
         }
       }
     }
+    this.bullets = this.bullets.filter(b => !b.dead && b.life > 0);
     this.foes = this.foes.filter(f => !f.dead);
-    this.bullets = this.bullets.filter(b => !b.dead);
     this.time -= dt;
-    if (this.hits >= this.goal) this.finish(true, 'Враги разбиты!');
-    else if (this.lives <= 0) this.finish(false, 'Танк уничтожен');
+    if (this.hits >= this.goal) this.finish(true, 'Все вражеские танки уничтожены!');
+    else if (!this.base.alive) this.finish(false, 'База разрушена!');
+    else if (this.lives <= 0) this.finish(false, 'Танки закончились');
     else if (this.time <= 0) this.finish(false, 'Время вышло');
+  }
+  drawTank(ctx, t) {
+    const color = t.kind === 'player' ? (this.p.settings.accent || '#ffd166')
+      : t.kind === 'armored' ? '#c792ea' : t.kind === 'fast' ? '#ff9f43' : '#ff6b81';
+    const ang = t.dir === 'up' ? -Math.PI / 2 : t.dir === 'down' ? Math.PI / 2
+      : t.dir === 'left' ? Math.PI : 0;
+    ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(ang);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; roundRect(ctx, -13, -9, 26, 24, 5); ctx.fill();
+    ctx.fillStyle = '#4d5666'; ctx.fillRect(-14, -12, 6, 24); ctx.fillRect(8, -12, 6, 24);
+    ctx.fillStyle = color; roundRect(ctx, -12, -10, 24, 20, 5); ctx.fill();
+    ctx.fillStyle = '#2f3542'; roundRect(ctx, -6, -7, 12, 13, 4); ctx.fill();
+    ctx.fillStyle = color; ctx.fillRect(2, -3, 18, 6);
+    if (t.kind === 'armored') {
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; roundRect(ctx, -12, -10, 24, 20, 5); ctx.stroke();
+    }
+    if (t.kind === 'player') drawEmoji(ctx, '⭐', 0, 0, 13);
+    ctx.restore();
   }
   draw(ctx) {
     ctx.fillStyle = this.p.settings.bg; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-    for (const f of this.foes) drawEmoji(ctx, '👾', f.x, f.y, 34);
-    ctx.fillStyle = this.p.settings.accent;
-    for (const b of this.bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, 7); ctx.fill(); }
-    const t = this.tank;
-    ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.a);
-    ctx.fillStyle = '#8fd694'; roundRect(ctx, -18, -14, 36, 28, 8); ctx.fill();
-    ctx.fillStyle = this.p.settings.accent; ctx.fillRect(2, -4, 30, 8);
-    ctx.restore();
-    this.edit(ctx, '🛡️', 'Танковый бой', `Разбей ${this.goal} вражеских танков.`);
+    ctx.fillStyle = 'rgba(255,255,255,.03)';
+    for (let r = 0; r < 14; r++) for (let c = 0; c < 25; c++)
+      if ((r + c) % 2 === 0) ctx.fillRect(c * 32, r * 32, 32, 32);
+    for (let r = 0; r < 14; r++) for (let c = 0; c < 25; c++) {
+      const t = this.grid[r][c]; if (!t) continue;
+      const x = c * 32, y = r * 32;
+      if (t === 1) {
+        ctx.fillStyle = '#c8663f'; ctx.fillRect(x + 1, y + 1, 30, 30);
+        ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 2;
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath(); ctx.moveTo(x + 1, y + 1 + k * 10); ctx.lineTo(x + 31, y + 1 + k * 10); ctx.stroke();
+        }
+        for (let k = 0; k < 2; k++) {
+          const off = k ? 10 : 22;
+          ctx.beginPath(); ctx.moveTo(x + off, y + 1 + k * 15); ctx.lineTo(x + off, y + 11 + k * 15); ctx.stroke();
+        }
+      } else if (t === 2) {
+        ctx.fillStyle = '#8b93a8'; ctx.fillRect(x + 1, y + 1, 30, 30);
+        ctx.fillStyle = '#c3cad9'; ctx.fillRect(x + 3, y + 3, 26, 4);
+        ctx.fillStyle = '#5b6274';
+        [[6, 7], [26, 7], [6, 26], [26, 26]].forEach(([px, py]) => {
+          ctx.beginPath(); ctx.arc(x + px, y + py, 2, 0, 7); ctx.fill();
+        });
+      } else if (t === 3) {
+        ctx.fillStyle = '#2f7fc4'; ctx.fillRect(x, y, 32, 32);
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+        for (let k = 0; k < 2; k++) {
+          ctx.beginPath(); ctx.moveTo(x + 4, y + 9 + k * 12);
+          ctx.quadraticCurveTo(x + 12, y + 5 + k * 12, x + 20, y + 9 + k * 12); ctx.stroke();
+        }
+      }
+    }
+    drawEmoji(ctx, this.base.alive ? '🦅' : '💥', this.base.x, this.base.y, 42);
+    for (const b of this.bullets) {
+      ctx.fillStyle = b.friend ? '#fff3a0' : '#ff8a8a';
+      ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill();
+    }
+    for (const f of this.foes) if (!f.dead) this.drawTank(ctx, f);
+    if (!(this.player.inv > 0 && Math.floor(this.time * 10) % 2 === 0)) this.drawTank(ctx, this.player);
+    for (let r = 0; r < 14; r++) for (let c = 0; c < 25; c++) if (this.grid[r][c] === 4) {
+      ctx.fillStyle = 'rgba(60,170,80,.7)'; ctx.fillRect(c * 32, r * 32, 32, 32);
+      drawEmoji(ctx, '🌿', c * 32 + 16, r * 32 + 16, 24);
+    }
+    this.edit(ctx, '🛡️', 'Батл Сити', `Уничтожь ${this.goal} танков и защити базу 🦅.`);
   }
-  getHud() { return this.goalHud('👾') + this.scoreHud() + this.heartHud() + this.timeHud(); }
+  getHud() {
+    return this.goalHud('👾') + this.heartHud() +
+      this.pill('🦅', this.base.alive ? 'цела' : 'разрушена') + this.timeHud();
+  }
 }
 
 /* ---------- Шутер 3: Меткий тир ---------- */
@@ -2863,7 +3035,7 @@ function makeEngine(p) {
   else if (p.template === 'memory') e = new MemoryEngine(p);
   else if (p.template === 'math') e = new MathEngine(p);
   else if (p.template === 'starraid') e = new StarRaidEngine(p);
-  else if (p.template === 'tank') e = new TankEngine(p);
+  else if (p.template === 'tank') e = new BattleCityEngine(p);
   else if (p.template === 'range') e = new RangeEngine(p);
   else if (p.template === 'whack') e = new WhackEngine(p);
   else if (p.template === 'runner') e = new RunnerEngine(p);
@@ -3010,7 +3182,7 @@ function updateChips() {
       : Math.max(3, Math.round((p.settings.count || 10) * (DIFF[p.settings.difficulty] || DIFF.normal).traffic));
   }
   const genreLabels = {
-    starraid: '👾 сбить', tank: '🛡️ разбить', range: '🎯 попасть', whack: '🐹 поймать',
+    starraid: '👾 сбить', tank: '👾 подбить', range: '🎯 попасть', whack: '🐹 поймать',
     runner: '🏁 метров', reaction: '⚡ очков', defense: '👾 отразить', farm: '🌾 собрать',
     duel: '❤️ прочность', brawl: '🥊 боя', zombie: '🧟 победить', rescue: '🧒 спасти'
   };
@@ -3332,10 +3504,21 @@ function mathSection(p) {
     </div>
   </div>`;
 }
+function battleSection(p) {
+  const maps = [[1, '🏰 Классика'], [2, '🌊 Река'], [3, '🪨 Крепость']];
+  return `<div class="tool-section">
+    <h4 class="tool-title">🛡️ Поле боя</h4>
+    <label class="field-label">Карта</label>
+    <div class="segmented">
+      ${maps.map(([v, l]) => `<button data-layout="${v}" class="${p.settings.layout === v ? 'active' : ''}">${l}</button>`).join('')}
+    </div>
+    <p class="hint-mini">Кирпичные стены можно пробить выстрелом, стальные — нет. Внизу поля стоит твоя база 🦅 — не дай врагам её разрушить.</p>
+  </div>`;
+}
 function genreSection(p) {
   const title = TEMPLATES[p.template].tag;
   const goalLabel = {
-    starraid: 'Сколько врагов сбить', tank: 'Сколько танков разбить',
+    starraid: 'Сколько врагов сбить', tank: 'Сколько танков уничтожить',
     range: 'Сколько мишеней поразить', whack: 'Сколько кротов поймать',
     runner: 'Дистанция (в десятках метров)', reaction: 'Нужно очков',
     defense: 'Сколько врагов отразить', farm: 'Сколько урожаев собрать',
@@ -3364,6 +3547,7 @@ function renderTools() {
   let html = commonSettings(p);
   if (GENRE_IDS.includes(p.template)) {
     html += genreSection(p);
+    if (p.template === 'tank') html += battleSection(p);
     if (['starraid', 'runner', 'zombie', 'rescue'].includes(p.template)) html += heroSection(p);
   }
   if (p.template === 'platformer' || p.template === 'collector') html += heroSection(p) + levelSection(p) + customItemsSection(p);
@@ -3459,7 +3643,7 @@ function openHelp() {
     <h3>📖 Как создать игру</h3>
     <p class="modal-sub">Всё просто — всего 5 шагов:</p>
     <ol class="modal-steps">
-      <li><b>Выбери шаблон</b>: всего 24 игры. Шутеры — «Звёздный рейд», «Танковый бой», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Плюс платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
+      <li><b>Выбери шаблон</b>: всего 24 игры. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Плюс платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
       <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
       <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим.</li>
@@ -3680,6 +3864,11 @@ function bindEvents() {
       p.settings.difficulty = b.dataset.diff;
       $$('[data-diff]', $('#toolsPanel')).forEach(x => x.classList.toggle('active', x.dataset.diff === b.dataset.diff));
       markDirty(); renderProps();
+    }
+    if (b.dataset.layout) {
+      p.settings.layout = +b.dataset.layout;
+      $$('[data-layout]', $('#toolsPanel')).forEach(x => x.classList.toggle('active', +x.dataset.layout === p.settings.layout));
+      state.engine.reset(); markDirty(); renderProps();
     }
     if (b.dataset.hero) { p.settings.hero = b.dataset.hero; $$('[data-hero]', $('#toolsPanel')).forEach(x => x.classList.toggle('active', x === b)); markDirty(); }
     if (b.dataset.car) { p.settings.car = b.dataset.car; $$('[data-car]', $('#toolsPanel')).forEach(x => x.classList.toggle('active', x === b)); markDirty(); }
