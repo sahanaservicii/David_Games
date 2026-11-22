@@ -52,7 +52,7 @@ function esc(str) {
 function uid() { return 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7); }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function hasGrid(p) { return !!p && (p.template === 'platformer' || p.template === 'collector'); }
+function hasGrid(p) { return !!p && (p.template === 'platformer' || p.template === 'runnerhuman' || p.template === 'collector'); }
 
 function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
@@ -88,7 +88,7 @@ function hash01(n) {
   return x - Math.floor(x);
 }
 const VISUAL_MOTIFS = {
-  platformer: 'stars', collector: 'bubbles', racer: 'road', quiz: 'question',
+  platformer: 'stars', runnerhuman: 'stars', collector: 'bubbles', racer: 'road', quiz: 'question',
   catcher: 'leaves', snake: 'dots', pong: 'dots', arkanoid: 'stars',
   shooter: 'stars', tictactoe: 'dots', memory: 'stars', math: 'dots',
   starraid: 'stars', tank: 'grid', range: 'dots', whack: 'leaves',
@@ -263,9 +263,11 @@ function isTouchDevice() {
 }
 function updateTouchControls() {
   const el = $('#touchControls');
+  const fire = $('#touchFire');
   const p = state.project;
   const need = state.mode === 'play' && isTouchDevice() && !(p && TOUCHLESS_IDS.includes(p.template));
   if (el) el.classList.toggle('hidden', !need);
+  if (fire) fire.classList.toggle('hidden', !(need && p && p.template === 'runnerhuman'));
 }
 function setVirtualKey(code, down) {
   if (down && !keys[code]) pressed[code] = true;
@@ -398,6 +400,7 @@ const Voice = {
     else if (/вправо|право|^d$/.test(text)) tapKey('ArrowRight');
     else if (/вверх|прыжок|прыгай|прыгни|^w$|^space$/.test(text)) tapKey('Space', 280);
     else if (/вниз|низ|^s$/.test(text)) tapKey('ArrowDown');
+    else if (/огонь|огнен|фаер|бросок|шар|^j$|^f$/.test(text)) tapKey('KeyJ');
     else if (/стоп|остановись|хват/.test(text)) { for (const k in keys) keys[k] = false; }
   }
 };
@@ -430,6 +433,14 @@ const TEMPLATES = {
     canvasTitle: 'Редактор платформера',
     canvasSubtitle: 'Расставляй платформы, звёзды и врагов — а затем нажми «Играть»',
     hint: '💡 Управление в игре: ← → или A D — двигаться, Пробел / ↑ / W — прыгать.'
+  },
+  runnerhuman: {
+    id: 'runnerhuman', title: 'Бегущий человек', emoji: '🔥', color: '#fff0e3',
+    tag: 'Обби-платформер', desc: 'Полоса препятствий как в Roblox Studio: десятки платформ, движущиеся площадки, контрольные точки и шипы. Беги, прыгай и бросай огненные шары, как Марио!',
+    features: ['Огненные шары', 'Обби-уровень', 'Контрольные точки'],
+    canvasTitle: 'Обби-редактор: Бегущий человек',
+    canvasSubtitle: 'Собери полосу препятствий: платформы, трамплины, шипы, движущиеся площадки и финиш',
+    hint: '💡 ← → или A D — бег, Пробел / ↑ / W — прыжок, J или F — огненный шар. На телефоне — кнопки «Действие» и «Огонь».'
   },
   collector: {
     id: 'collector', title: 'Собери звёзды', emoji: '🌟', color: '#fff2d9',
@@ -619,6 +630,12 @@ const TIPS = {
     'Платформы должны быть под звёздами, иначе герой не достанет их.',
     'Проверь игру кнопкой «Играть» — так сразу видно, что нужно исправить.'
   ],
+  runnerhuman: [
+    'Размести 🚩 старт, потом строй лестницу из платформ с шагами не выше 3 клеток.',
+    '↔️ ездит влево-вправо, ↕️ — вверх-вниз: ставь их там, где нужен переход.',
+    '📍 контрольная точка возвращает героя к месту после гибели. Не забудь 🏁 финиш!',
+    'Стреляй огненными шарами кнопкой J / F или 🔥 на телефоне — так легче справиться с 👾.'
+  ],
   collector: [
     'Закрась крайние клетки стенами, чтобы герой не убежал.',
     'Оставь проходы шириной хотя бы 2 клетки — так играть интереснее.',
@@ -752,6 +769,9 @@ const ITEMS = {
   finish: { em: '🏁', label: 'Финиш', desc: 'Дойди до флага — и уровень пройден!' },
   enemy:  { em: '👾', label: 'Враг', desc: 'Опасный монстрик. Не касайся его!' },
   start:  { em: '🚩', label: 'Старт', desc: 'Здесь появляется герой в начале игры.' },
+  mover:  { em: '↔️', label: 'Движущаяся платформа', desc: 'Ездит влево-вправо. Герой стоит на ней и едет вместе с ней.' },
+  moverv: { em: '↕️', label: 'Подъёмная платформа', desc: 'Ездит вверх-вниз. Помогает добраться до высоких мест.' },
+  checkpoint: { em: '📍', label: 'Контрольная точка', desc: 'После гибели герой возрождается здесь, а не в начале.' },
   erase:  { em: '🧽', label: 'Ластик', desc: 'Стирай лишние предметы, чтобы освободить место.' }
 };
 
@@ -759,7 +779,8 @@ const ITEMS = {
 const BUILTIN_EFFECT = {
   wall: 'solid', star: 'goal', coin: 'points25', gem: 'points100',
   heart: 'life', spike: 'hurt', tramp: 'tramp', finish: 'finish',
-  enemy: 'enemy', start: 'start', erase: 'erase'
+  enemy: 'enemy', start: 'start',
+  mover: 'mover', moverv: 'mover', checkpoint: 'checkpoint', erase: 'erase'
 };
 const PICKUP_EFFECTS = ['points10', 'points25', 'points50', 'points100', 'life', 'hurt', 'tramp', 'finish', 'goal'];
 const POINTS = { points10: 10, points25: 25, points50: 50, points100: 100 };
@@ -806,6 +827,36 @@ function defaultPlatformerLevel() {
   grid[11][24] = 'finish';
   [[12, 11], [23, 11]].forEach(([x, y]) => { grid[y][x] = 'enemy'; });
   return { grid, start: { cx: 2, cy: 11 } };
+}
+function defaultRunnerHumanLevel() {
+  const grid = emptyGrid();
+  const seg = (a, b, y) => { for (let x = a; x <= b; x++) grid[y][x] = 'wall'; };
+  // Земля с разрывами — настоящая полоса препятствий
+  seg(0, 7, 12); seg(11, 15, 12); seg(19, 24, 12);
+  // Основной маршрут вверх
+  seg(6, 9, 10); seg(9, 12, 8); seg(13, 16, 7);
+  seg(17, 20, 6); seg(20, 23, 5); seg(22, 24, 4);
+  // Дополнительные ветки с наградами
+  seg(2, 4, 10); seg(2, 4, 8); seg(15, 17, 4); seg(5, 7, 6);
+  // Движущиеся платформы как в Roblox Studio
+  grid[11][9] = 'mover'; grid[10][18] = 'moverv'; grid[8][19] = 'mover';
+  // Контрольные точки
+  grid[11][12] = 'checkpoint'; grid[6][14] = 'checkpoint'; grid[3][22] = 'checkpoint';
+  // Награды и опасности
+  [[7, 9], [10, 7], [15, 6], [18, 5], [21, 4], [3, 9], [6, 5]]
+    .forEach(([x, y]) => { grid[y][x] = 'coin'; });
+  grid[3][16] = 'gem';
+  grid[11][13] = 'heart';
+  grid[11][3] = 'tramp';
+  grid[11][5] = 'spike'; grid[11][14] = 'spike'; grid[9][8] = 'spike';
+  [[6, 11], [13, 11], [21, 11]].forEach(([x, y]) => { grid[y][x] = 'enemy'; });
+  grid[3][23] = 'finish';
+  return { grid, start: { cx: 2, cy: 11 } };
+}
+function defaultLevelFor(templateId) {
+  return templateId === 'platformer' ? defaultPlatformerLevel()
+    : templateId === 'runnerhuman' ? defaultRunnerHumanLevel()
+    : defaultCollectorLevel();
 }
 function defaultCollectorLevel() {
   const grid = emptyGrid();
@@ -862,6 +913,7 @@ function createProject(templateId) {
     }
   };
   const extras = {
+    runnerhuman: { hero: '🧑' },
     snake:     { snakeColor: '#38c172', food: '🍎' },
     pong:      { paddle: '#5ac8fa', target: 7 },
     arkanoid:  { rows: 5, paddleColor: '#ffd166' },
@@ -876,6 +928,7 @@ function createProject(templateId) {
     Object.assign(p.settings, { speed: 1, lives: 2, count: 10, seconds: 60, target: 10, hero: '🚀' });
   }
   if (templateId === 'platformer') p.level = defaultPlatformerLevel();
+  if (templateId === 'runnerhuman') p.level = defaultRunnerHumanLevel();
   if (templateId === 'collector') p.level = defaultCollectorLevel();
   if (templateId === 'quiz') p.questions = defaultQuestions();
   return p;
@@ -1041,7 +1094,7 @@ class GridEngine extends BaseEngine {
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
         const v = this.grid[y][x];
-        if (!v) continue;
+        if (!v || v === 'mover' || v === 'moverv' || v === 'checkpoint') continue;
         const px = x * CELL, py = y * CELL;
         if (v === 'wall') {
           roundRect(ctx, px + 1, py + 1, CELL - 2, CELL - 2, 7);
@@ -1199,6 +1252,193 @@ class PlatformerEngine extends GridEngine {
   getHud() {
     return `<span class="hud-pill">♥ ${'♥'.repeat(Math.max(0, this.hearts))}</span>` +
            `<span class="hud-pill">⭐ ${this.score}</span>` +
+           `<span class="hud-pill">⏱ ${Math.floor(this.time)} с</span>`;
+  }
+}
+
+/* «Бегущий человек» — обби-платформер с огненными шарами */
+class RunnerHumanEngine extends GridEngine {
+  constructor(p) { super(p); }
+  reset() {
+    super.reset();
+    this.hero = { x: this.start.cx * CELL + 3, y: this.start.cy * CELL - 30,
+      w: 26, h: 30, vx: 0, vy: 0, onGround: false, facing: 1 };
+    this.enemies = []; this.movers = []; this.checkpoints = [];
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const kind = this.grid[y][x];
+        if (kind === 'enemy') {
+          this.enemies.push({ x: x * CELL + 2, y: y * CELL + 4, w: 28, h: 28,
+            vx: (Math.random() < .5 ? -1 : 1) * 92, dead: false });
+        } else if (kind === 'mover' || kind === 'moverv') {
+          this.movers.push({ baseX: x * CELL, baseY: y * CELL + 18,
+            x: x * CELL, y: y * CELL + 18, w: CELL, h: 14, dx: 0,
+            axis: kind === 'moverv' ? 'y' : 'x', phase: (x + y) * 0.7 });
+        } else if (kind === 'checkpoint') {
+          this.checkpoints.push({ x, y, got: false });
+        }
+      }
+    }
+    this.checkpoint = null;
+    this.fireballs = []; this.fireCd = 0;
+    this.hearts = this.p.settings.lives;
+    this.score = 0; this.time = 0; this.invuln = 0; this.finished = false;
+  }
+  update(dt) {
+    if (this.finished) return;
+    const s = this.p.settings, diff = diffOf(this.p), h = this.hero;
+    const spd = 225 * s.speed * diff.speed;
+
+    if (keys.ArrowLeft || keys.KeyA) { h.vx = -spd; h.facing = -1; }
+    else if (keys.ArrowRight || keys.KeyD) { h.vx = spd; h.facing = 1; }
+    else h.vx = 0;
+    if ((pressed.Space || pressed.ArrowUp || pressed.KeyW) && h.onGround) {
+      h.vy = -600; h.onGround = false; beep(680, .07);
+    }
+    h.vy = Math.min(h.vy + 1650 * dt, 900);
+    const prevBottom = h.y + h.h;
+    h.onGround = false;
+    this.resolveAxis(h, 'x', h.vx * dt, true);
+    this.resolveAxis(h, 'y', h.vy * dt, true);
+
+    for (const m of this.movers) {
+      const off = Math.sin(this.time * 1.15 * diff.speed + m.phase) * (m.axis === 'x' ? 72 : 56);
+      const nx = m.axis === 'x' ? m.baseX + off : m.baseX;
+      const ny = m.axis === 'y' ? m.baseY + off : m.baseY;
+      m.dx = nx - m.x; m.x = nx; m.y = ny;
+      const overlapX = h.x + h.w > m.x + 2 && h.x < m.x + m.w - 2;
+      if (overlapX && h.vy >= 0 && prevBottom <= m.y + 10 && h.y + h.h >= m.y) {
+        h.y = m.y - h.h; h.vy = 0; h.onGround = true;
+        h.x = clamp(h.x + m.dx, 0, W - h.w);
+      }
+    }
+
+    this.fireCd = Math.max(0, this.fireCd - dt);
+    if ((keys.KeyJ || keys.KeyF || keys.KeyK) && this.fireCd <= 0 && this.fireballs.length < 5) {
+      this.fireballs.push({ x: h.x + h.w / 2 + h.facing * 13, y: h.y + 13,
+        vx: h.facing * 360 * s.speed, vy: -130, life: 2.2, bounce: 0 });
+      this.fireCd = 0.3 / diff.speed;
+      beep(940, .06); FX.burst(h.x + h.w / 2, h.y + 13, '#ff9f43', 4);
+    }
+    for (const b of this.fireballs) {
+      b.life -= dt;
+      b.vy = Math.min(b.vy + 700 * dt, 520);
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.vy > 0 && this.isSolid(Math.floor(b.x / CELL), Math.floor((b.y + 8) / CELL), false)) {
+        b.y = Math.floor((b.y + 8) / CELL) * CELL - 8; b.vy = -260; b.bounce++;
+      }
+      if (b.bounce > 3) b.life = 0;
+      for (const e of this.enemies) {
+        if (e.dead || !aabb({ x: b.x - 6, y: b.y - 6, w: 12, h: 12 }, e)) continue;
+        e.dead = true; b.life = 0; this.score += 50;
+        FX.burst(e.x + e.w / 2, e.y + e.h / 2, '#ff9f43', 12);
+        beep(520, .12); showToast('🔥 Враг повержен! +50 очков', 'ok');
+      }
+    }
+    this.fireballs = this.fireballs.filter(b => b.life > 0 && b.x > -20 && b.x < W + 20);
+
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      const step = e.vx * dt * s.speed * diff.speed;
+      const ahead = Math.floor((e.x + (step > 0 ? e.w + 2 : -2)) / CELL);
+      const ownRow = Math.floor((e.y + e.h / 2) / CELL);
+      const below = Math.floor((e.y + e.h + 4) / CELL);
+      const noFloor = below >= ROWS || this.grid[below][ahead] !== 'wall';
+      if (noFloor || this.isSolid(ahead, ownRow, false) || e.x + step < 0 || e.x + step + e.w > W) e.vx *= -1;
+      e.x += e.vx * dt * s.speed * diff.speed;
+    }
+
+    this.invuln = Math.max(0, this.invuln - dt);
+    this.time += dt;
+
+    for (const cp of this.checkpoints) {
+      if (cp.got) continue;
+      if (Math.abs(h.x + h.w / 2 - (cp.x * CELL + CELL / 2)) < 20 &&
+          Math.abs(h.y + h.h / 2 - (cp.y * CELL + CELL / 2)) < 24) {
+        cp.got = true;
+        this.checkpoint = { cx: cp.x, cy: cp.y };
+        beep(760, .14);
+        FX.burst(cp.x * CELL + CELL / 2, cp.y * CELL + CELL / 2, '#38c172', 8);
+        showToast('📍 Контрольная точка сохранена!', 'ok');
+      }
+    }
+    for (const it of this.pickups) {
+      if (it.got) continue;
+      const ix = it.x * CELL + CELL / 2, iy = it.y * CELL + CELL / 2;
+      if (Math.abs(h.x + h.w / 2 - ix) > 22 || Math.abs(h.y + h.h / 2 - iy) > 24) continue;
+      const eff = it.eff;
+      if (eff === 'hurt') {
+        if (this.invuln <= 0) { this.take(it); this.hurt(); }
+        continue;
+      }
+      if (eff === 'finish') {
+        this.finish(true, `Ты дошёл до финиша за ${Math.floor(this.time)} секунд!`);
+        return;
+      }
+      this.take(it);
+      if (POINTS[eff]) { this.score += POINTS[eff]; beep(980, .08); }
+      else if (eff === 'life') { this.hearts++; beep(760, .14); showToast('❤️ +1 жизнь!', 'ok'); }
+      else if (eff === 'tramp') { h.vy = -820; h.onGround = false; beep(520, .12); }
+      else if (eff === 'goal') { beep(880, .09); }
+    }
+    if (this.invuln <= 0) {
+      for (const e of this.enemies) {
+        if (!e.dead && aabb(h, e)) { this.hurt(); break; }
+      }
+    }
+    if (h.y > H + 10) this.hurt();
+  }
+  hurt() {
+    this.hearts--;
+    this.invuln = 1;
+    beep(220, .16);
+    if (this.hearts <= 0) {
+      this.finish(false, 'У Бегущего человека закончились жизни. Попробуй ещё раз!');
+      return;
+    }
+    const pt = this.checkpoint || this.start;
+    this.hero.x = pt.cx * CELL + 3;
+    this.hero.y = pt.cy * CELL - 30;
+    this.hero.vx = this.hero.vy = 0;
+    showToast(this.checkpoint ? '📍 Возрождение у контрольной точки' : '🚩 Возрождение на старте', 'warn');
+  }
+  finish(win, msg) { this.finished = true; this.onFinish(win, msg); }
+  draw(ctx) {
+    this.drawStatic(ctx, state.mode !== 'play');
+    for (const m of this.movers) {
+      roundRect(ctx, m.x, m.y, m.w, m.h, 6);
+      ctx.fillStyle = shade(this.p.settings.accent, -20);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      roundRect(ctx, m.x + 3, m.y + 2, m.w - 6, 3, 2);
+      ctx.fill();
+      drawEmoji(ctx, m.axis === 'x' ? '↔️' : '↕️', m.x + m.w / 2, m.y + m.h / 2, 14);
+    }
+    for (const cp of this.checkpoints) {
+      const px = cp.x * CELL + CELL / 2, py = cp.y * CELL + CELL / 2;
+      if (cp.got) {
+        ctx.save(); ctx.strokeStyle = '#38c172'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(px, py, 15, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      }
+      drawEmoji(ctx, '📍', px, py, cp.got ? 26 : 22);
+    }
+    if (state.mode !== 'play') return;
+    for (const e of this.enemies) {
+      if (!e.dead) drawEmoji(ctx, '👾', e.x + e.w / 2, e.y + e.h / 2, 27);
+    }
+    for (const b of this.fireballs) {
+      ctx.save(); ctx.shadowColor = '#ff9f43'; ctx.shadowBlur = 14;
+      drawEmoji(ctx, '🔥', b.x, b.y, 21);
+      ctx.restore();
+    }
+    if (this.invuln <= 0 || Math.floor(this.time * 12) % 2 === 0) {
+      drawEmoji(ctx, this.p.settings.hero, this.hero.x + this.hero.w / 2, this.hero.y + this.hero.h / 2, 28);
+    }
+  }
+  getHud() {
+    return `<span class="hud-pill">♥ ${'♥'.repeat(Math.max(0, this.hearts))}</span>` +
+           `<span class="hud-pill">⭐ ${this.score}</span>` +
+           `<span class="hud-pill">🔥 ${this.fireballs.length}</span>` +
            `<span class="hud-pill">⏱ ${Math.floor(this.time)} с</span>`;
   }
 }
@@ -3159,6 +3399,7 @@ class RescueEngine extends GenreEngine {
 function makeEngine(p) {
   let e;
   if (p.template === 'platformer') e = new PlatformerEngine(p);
+  else if (p.template === 'runnerhuman') e = new RunnerHumanEngine(p);
   else if (p.template === 'collector') e = new CollectorEngine(p);
   else if (p.template === 'racer') e = new RacerEngine(p);
   else if (p.template === 'catcher') e = new CatcherEngine(p);
@@ -3377,9 +3618,9 @@ function commonSettings(p) {
   const acPresets = ['#ffd166', '#ff9f43', '#38c172', '#5ac8fa', '#ff6b81', '#c792ea'];
   const genreLives = ['starraid', 'tank', 'whack', 'runner', 'defense', 'brawl', 'zombie', 'rescue'];
   const withRules = GENRE_IDS.includes(p.template) ||
-    ['platformer', 'collector', 'racer', 'catcher', 'snake', 'pong', 'arkanoid', 'shooter', 'math'].includes(p.template);
+    ['platformer', 'runnerhuman', 'collector', 'racer', 'catcher', 'snake', 'pong', 'arkanoid', 'shooter', 'math'].includes(p.template);
   const withLives = genreLives.includes(p.template) ||
-    ['platformer', 'collector', 'racer', 'catcher', 'arkanoid', 'shooter', 'math'].includes(p.template);
+    ['platformer', 'runnerhuman', 'collector', 'racer', 'catcher', 'arkanoid', 'shooter', 'math'].includes(p.template);
   let html = `
   <div class="tool-section">
     <h4 class="tool-title">🎨 Оформление</h4>
@@ -3430,17 +3671,19 @@ function commonSettings(p) {
   return html;
 }
 function heroSection(p) {
-  const list = ['🚀', '🐱', '🦊', '🐼', '🤖', '🐸', '🦄', '🐯', '👾', '🐙'];
+  const list = ['🚀', '🐱', '🦊', '🐼', '🤖', '🐸', '🦄', '🐯', '👾', '🐙', '🧑', '👦', '👧', '🦸'];
   return `<div class="tool-section">
     <h4 class="tool-title">🦸 Выбери героя</h4>
     <div class="emoji-grid">${list.map(e => `<button class="emoji-btn ${p.settings.hero === e ? 'active' : ''}" data-hero="${e}">${e}</button>`).join('')}</div>
   </div>`;
 }
 function levelSection(p) {
-  const order = p.template === 'platformer'
-    ? ['wall', 'star', 'coin', 'gem', 'heart', 'tramp', 'spike', 'finish', 'enemy', 'start', 'erase']
-    : ['wall', 'star', 'coin', 'gem', 'heart', 'spike', 'finish', 'enemy', 'start', 'erase'];
-  const wallLabel = p.template === 'platformer' ? 'Платформа' : 'Стена';
+  const order = p.template === 'runnerhuman'
+    ? ['wall', 'mover', 'moverv', 'checkpoint', 'coin', 'gem', 'heart', 'tramp', 'spike', 'finish', 'enemy', 'start', 'erase']
+    : p.template === 'platformer'
+      ? ['wall', 'star', 'coin', 'gem', 'heart', 'tramp', 'spike', 'finish', 'enemy', 'start', 'erase']
+      : ['wall', 'star', 'coin', 'gem', 'heart', 'spike', 'finish', 'enemy', 'start', 'erase'];
+  const wallLabel = (p.template === 'platformer' || p.template === 'runnerhuman') ? 'Платформа' : 'Стена';
   const all = order.concat((p.customItems || []).map(c => customKind(c.id)));
   return `<div class="tool-section">
     <h4 class="tool-title">🗺️ Редактор уровня</h4>
@@ -3685,7 +3928,7 @@ function renderTools() {
     if (p.template === 'tank') html += battleSection(p);
     if (['starraid', 'runner', 'zombie', 'rescue'].includes(p.template)) html += heroSection(p);
   }
-  if (p.template === 'platformer' || p.template === 'collector') html += heroSection(p) + levelSection(p) + customItemsSection(p);
+  if (p.template === 'platformer' || p.template === 'runnerhuman' || p.template === 'collector') html += heroSection(p) + levelSection(p) + customItemsSection(p);
   if (p.template === 'racer') html += racerSection(p);
   if (p.template === 'catcher') html += catcherSection(p);
   if (p.template === 'quiz') html += quizSection(p);
@@ -3704,7 +3947,7 @@ function renderProps() {
   let html = '';
   if (hasGrid(p)) {
     const it = getItem(p, state.tool) || ITEMS.wall;
-    const desc = state.tool === 'wall' && p.template === 'platformer'
+    const desc = state.tool === 'wall' && (p.template === 'platformer' || p.template === 'runnerhuman')
       ? 'Платформа — по ней герой ходит и прыгает.' : it.desc;
     html += `<div class="prop-card"><span class="prop-emoji">${it.em}</span><h4>Выбранный инструмент</h4><p>${esc(desc)}</p></div>`;
   }
@@ -3754,7 +3997,8 @@ function renderProps() {
     shooter: [['🚀 Корабль', p.settings.ship], ['👾 Пришельцев', '32'], ['⚡ Стрельба', Number(p.settings.fireRate).toFixed(1) + '×']],
     tictactoe: [['🎯 Соперник', ({ easy: 'Сонный', normal: 'Обычный', hard: 'Умный' })[p.settings.smart] || 'Обычный'], ['✍️ Первый ход', p.settings.first ? 'Ты' : 'Компьютер']],
     memory: [['🃏 Пар', p.settings.pairs], ['🃏 Карточек', p.settings.pairs * 2], ['🎨 Колода', ({ animals: 'Зверята', food: 'Еда', space: 'Космос' })[p.settings.deck] || 'Зверята']],
-    math: [['❓ Примеров', p.settings.count], ['⏱ Секунд', p.settings.seconds], ['➗ Действий', (p.settings.ops || []).join(' ')]]
+    math: [['❓ Примеров', p.settings.count], ['⏱ Секунд', p.settings.seconds], ['➗ Действий', (p.settings.ops || []).join(' ')]],
+    runnerhuman: [['🔥 Огненный шар', 'J / F'], ['↔️ Платформ', state.engine && state.engine.movers ? state.engine.movers.length : 0], ['📍 Точек', state.engine && state.engine.checkpoints ? state.engine.checkpoints.length : 0]]
   };
   if (extraStats[p.template]) {
     html += `<div class="prop-card"><h4>📊 Настройки</h4>` +
@@ -3778,7 +4022,7 @@ function openHelp() {
     <h3>📖 Как создать игру</h3>
     <p class="modal-sub">Всё просто — всего 5 шагов:</p>
     <ol class="modal-steps">
-      <li><b>Выбери шаблон</b>: всего 24 игры. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Плюс платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
+      <li><b>Выбери шаблон</b>: всего 25 игр. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Плюс «Бегущий человек» (обби с огненными шарами), платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
       <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
       <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим.</li>
@@ -3842,7 +4086,7 @@ function importProject(obj) {
   p.updatedAt = Date.now();
   if (hasGrid(p)) {
     if (!p.level || !Array.isArray(p.level.grid) || p.level.grid.length !== ROWS) {
-      p.level = obj.template === 'platformer' ? defaultPlatformerLevel() : defaultCollectorLevel();
+      p.level = defaultLevelFor(obj.template);
     }
     if (!p.level.start) p.level.start = { cx: 2, cy: 2 };
   }
@@ -4066,7 +4310,7 @@ function bindEvents() {
       showToast('Уровень очищен. Рисуй новый! 🧹');
     }
     if (act === 'reset-level') {
-      p.level = p.template === 'platformer' ? defaultPlatformerLevel() : defaultCollectorLevel();
+      p.level = defaultLevelFor(p.template);
       state.engine.reset(); markDirty(); renderProps(); updateChips();
       showToast('Пример уровня вернулся 🔄');
     }
