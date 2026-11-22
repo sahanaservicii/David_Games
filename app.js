@@ -1241,7 +1241,7 @@ function saveProject(silent = false) {
   $('#saveStatus').textContent = '● Всё сохранено';
   $('#saveStatus').classList.remove('dirty');
   if (!silent) showToast('Игра сохранена! 💾', 'ok');
-  if (state.screen === 'gallery') renderSaved();
+  if (state.screen === 'gallery') { renderSaved(); updateCoinChip(); }
 }
 function markDirty() {
   state.dirty = true;
@@ -1264,9 +1264,19 @@ function normalizeProgress(p) {
   p.missions = (p.missions && typeof p.missions === 'object') ? p.missions : {};
 }
 function getCoins(p = state.project) { return p ? Math.max(0, Math.floor(Number(p.coins) || 0)) : 0; }
+function getTotalCoins() {
+  return loadProjects().reduce((sum, p) => sum + getCoins(p), 0);
+}
 function updateCoinChip() {
   const el = $('#coinChip');
-  if (el) el.textContent = '🪙 ' + getCoins();
+  if (!el) return;
+  if (state.project) {
+    el.textContent = '🪙 ' + getCoins();
+    el.title = 'Коины в открытой игре';
+  } else {
+    el.textContent = '🪙 ' + getTotalCoins();
+    el.title = 'Всего коинов во всех сохранённых играх';
+  }
 }
 function addCoins(n, reason) {
   const p = state.project;
@@ -4359,7 +4369,7 @@ function renderPublished() {
     const date = new Date(p.publishedAt || p.updatedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short' });
     return `<article class="card published-card" style="--tpl:${t.color}">
       <div class="card-emoji">${t.emoji}</div>
-      <span class="card-tag">${t.tag} · ${date}</span>
+      <span class="card-tag">${t.tag} · 🪙 ${getCoins(p)} · ${date}</span>
       <h4>${esc(p.name)}</h4>
       <div class="saved-actions">
         <button class="btn btn-small btn-primary" data-pub-open="${esc(p.id)}">▶ Открыть</button>
@@ -4381,7 +4391,7 @@ function renderSaved() {
     const date = new Date(p.updatedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     return `<article class="card saved-card" style="--tpl:${t.color}">
       <div class="card-emoji">${t.emoji}</div>
-      <span class="card-tag">${t.tag}</span>
+      <span class="card-tag">${t.tag} · 🪙 ${getCoins(p)}</span>
       <h4>${esc(p.name)}</h4>
       <div class="saved-date">🕒 ${date}</div>
       <div class="saved-actions">
@@ -4433,6 +4443,7 @@ function goGallery() {
   showScreen('gallery');
   renderSaved();
   renderPublished();
+  updateCoinChip();
 }
 function updateEditorHeader() {
   const p = state.project, t = TEMPLATES[p.template];
@@ -5453,5 +5464,6 @@ function loop(ts) {
 
 /* ---------- Запуск ---------- */
 renderGallery();
+updateCoinChip();
 bindEvents();
 requestAnimationFrame(loop);
