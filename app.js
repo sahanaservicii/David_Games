@@ -30,10 +30,24 @@ const SHOP_ITEMS = [
 /* ---------- Задания в верхней панели ---------- */
 const MISSION_REWARD = 4;
 const winMetric = e => (e && e.finished ? 1 : 0);
+const starMetric = e => {
+  if (!e) return 0;
+  if (Array.isArray(e.stars)) return e.stars.filter(s => s.got).length;
+  if (Array.isArray(e.pickups)) return e.pickups.filter(it => it.eff === 'goal' && it.got).length;
+  return 0;
+};
+const starGoal = e => {
+  if (e && Array.isArray(e.stars) && e.stars.length) return e.stars.length;
+  if (e && Array.isArray(e.pickups)) {
+    const n = e.pickups.filter(it => it.eff === 'goal').length;
+    if (n) return n;
+  }
+  return 5;
+};
 const MISSION_DEFS = {
-  platformer:  { text: 'Собрать все звёзды и дойти до финиша', goal: e => (e && e.stars ? e.stars.length : 5), metric: e => (e.stars || []).filter(s => s.got).length },
-  runnerhuman: { text: 'Собрать все звёзды и дойти до финиша с огненными шарами', goal: e => (e && e.stars ? e.stars.length : 5), metric: e => (e.stars || []).filter(s => s.got).length },
-  collector:   { text: 'Собрать все звёзды и найти выход из лабиринта', goal: e => (e && e.stars ? e.stars.length : 7), metric: e => (e.stars || []).filter(s => s.got).length },
+  platformer:  { text: 'Собрать все звёзды и дойти до финиша', stars: true, goal: starGoal, metric: starMetric },
+  runnerhuman: { text: 'Дойти до финиша в обби с огненными шарами', goal: 1, metric: winMetric },
+  collector:   { text: 'Собрать все звёзды и найти выход из лабиринта', stars: true, goal: starGoal, metric: starMetric },
   racer:       { text: 'Набрать 100 очков и прийти к финишу', goal: 100 },
   quiz:        { text: 'Ответить правильно на вопросы викторины', goal: 50 },
   catcher:     { text: 'Поймать яблоки и набрать 100 очков', goal: 100 },
@@ -86,14 +100,16 @@ function missionDone(p, e, win) {
   const def = currentMission(p);
   if (def.kills && (e.hits || 0) < def.kills) return false;
   if (def.lives && (e.lives || 0) < def.lives) return false;
-  return missionValue(def, e) >= missionGoal(def, e, p);
+  if (def.stars) return missionValue(def, e) >= missionGoal(def, e, p);
+  return true;
 }
 function renderMission() {
   const bar = $('#missionBar');
   if (!bar || !state.project) return;
   const p = state.project, def = currentMission(p), e = state.engine;
-  const goal = missionGoal(def, e, p), val = Math.min(goal, missionValue(def, e));
+  const goal = missionGoal(def, e, p);
   const done = !!(p.missions && p.missions[p.template]);
+  const val = done ? goal : Math.min(goal, missionValue(def, e));
   $('#missionText').textContent = def.text;
   $('#missionCount').textContent = `${val} / ${goal}`;
   $('#missionFill').style.width = (goal ? val / goal * 100 : 0) + '%';
@@ -104,8 +120,9 @@ function renderMission() {
 function missionHudHtml() {
   if (!state.project || !state.engine) return '';
   const def = currentMission(state.project), e = state.engine;
-  const goal = missionGoal(def, e, state.project), val = Math.min(goal, missionValue(def, e));
+  const goal = missionGoal(def, e, state.project);
   const done = !!(state.project.missions && state.project.missions[state.project.template]);
+  const val = done ? goal : Math.min(goal, missionValue(def, e));
   return `<span class="hud-pill mission-hud">${done ? '✔' : '📋'} ${def.text} · ${val}/${goal}</span>`;
 }
 
@@ -321,9 +338,10 @@ function aabb(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-let audioCtx = null;
+let audioCtx = null, activeBeeps = 0;
 function beep(freq = 600, dur = 0.06) {
   if (!state.project || state.project.settings.sound === false) return;
+  if (activeBeeps >= 24) return;
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -332,6 +350,11 @@ function beep(freq = 600, dur = 0.06) {
     g.gain.setValueAtTime(0.055, audioCtx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
     o.connect(g); g.connect(audioCtx.destination);
+    activeBeeps++;
+    o.onended = () => {
+      activeBeeps = Math.max(0, activeBeeps - 1);
+      try { o.disconnect(); g.disconnect(); } catch (e) { /* ignored */ }
+    };
     o.start(); o.stop(audioCtx.currentTime + dur);
   } catch (e) { /* звук не критичен */ }
 }
@@ -1218,7 +1241,7 @@ function saveProject(silent = false) {
   $('#saveStatus').textContent = '● Всё сохранено';
   $('#saveStatus').classList.remove('dirty');
   if (!silent) showToast('Игра сохранена! 💾', 'ok');
-  renderSaved();
+  if (state.screen === 'gallery') renderSaved();
 }
 function markDirty() {
   state.dirty = true;
@@ -4474,7 +4497,8 @@ function setMode(mode) {
   state.engine.reset();
   state.engine.setPlaying(playing);
   if (playing) {
-    $('#playHud').innerHTML = missionHudHtml() + state.engine.getHud();
+    lastHudHtml = missionHudHtml() + state.engine.getHud();
+    $('#playHud').innerHTML = lastHudHtml;
     if (state.project.settings.narrate && !state.project.settings.voice) Speech.speak(rulesText(state.project));
     Voice.start();
     if (state.project.settings.voice && !Voice.supported()) showToast('Голос доступен в Chrome и Edge', 'warn');
@@ -5394,7 +5418,7 @@ function bindEvents() {
 /* ---------- Главный цикл ---------- */
 const canvas = $('#gameCanvas');
 const ctx = canvas.getContext('2d');
-let lastTime = 0, hudAcc = 0, fxEngine = null, fxWasFinished = false;
+let lastTime = 0, hudAcc = 0, fxEngine = null, fxWasFinished = false, lastHudHtml = '';
 function loop(ts) {
   const dt = lastTime ? Math.min((ts - lastTime) / 1000, 0.05) : 0;
   lastTime = ts;
@@ -5404,13 +5428,19 @@ function loop(ts) {
       fxEngine = state.engine;
       fxWasFinished = !!state.engine.finished;
       FX.clear();
+      lastHudHtml = '';
     }
     if (state.engine.finished && !fxWasFinished) FX.celebrate();
     fxWasFinished = !!state.engine.finished;
     if (state.mode === 'play') {
       state.engine.update(dt);
       hudAcc += dt;
-      if (hudAcc > 0.15) { hudAcc = 0; $('#playHud').innerHTML = missionHudHtml() + state.engine.getHud(); renderMission(); }
+      if (hudAcc > 0.15) {
+        hudAcc = 0;
+        const html = missionHudHtml() + state.engine.getHud();
+        if (html !== lastHudHtml) { $('#playHud').innerHTML = html; lastHudHtml = html; }
+        renderMission();
+      }
     }
     FX.update(dt);
     state.engine.draw(ctx);
