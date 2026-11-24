@@ -11,122 +11,9 @@ const COLS = 25, ROWS = 14, CELL = 32;
 const W = COLS * CELL, H = ROWS * CELL;
 const STORAGE_KEY = 'igrolab.projects.v1';
 const PUB_KEY = 'igrolab.published.v1';
-const WALLET_KEY = 'igrolab.wallet.v1';
-let walletCoins = 0;
 
 const keys = Object.create(null);
 const pressed = Object.create(null);
-
-/* Внутриигровая валюта: коины и магазин предметов */
-const COIN_PRICE = 10;
-const SHOP_ITEMS = [
-  { id: 'heart', em: '❤️', title: 'Лишняя жизнь', desc: 'Сразу +1 жизнь в этой игре' },
-  { id: 'shield', em: '🛡️', title: 'Защитный щит', desc: '8 секунд герой не получает урон' },
-  { id: 'clock', em: '⏰', title: 'Дополнительное время', desc: '+10 секунд на уровень' },
-  { id: 'score', em: '⭐', title: 'Бонус очков', desc: '+100 очков сразу' },
-  { id: 'magnet', em: '🧲', title: 'Магнит наград', desc: '10 секунд награды летят к герою', miniOnly: true },
-  { id: 'bomb', em: '💣', title: 'Бомба против врагов', desc: 'Уничтожить всех врагов на поле' }
-];
-
-
-/* ---------- Задания в верхней панели ---------- */
-const MISSION_REWARD = 4;
-const winMetric = e => (e && e.finished ? 1 : 0);
-const starMetric = e => {
-  if (!e) return 0;
-  if (Array.isArray(e.stars)) return e.stars.filter(s => s.got).length;
-  if (Array.isArray(e.pickups)) return e.pickups.filter(it => it.eff === 'goal' && it.got).length;
-  return 0;
-};
-const starGoal = e => {
-  if (e && Array.isArray(e.stars) && e.stars.length) return e.stars.length;
-  if (e && Array.isArray(e.pickups)) {
-    const n = e.pickups.filter(it => it.eff === 'goal').length;
-    if (n) return n;
-  }
-  return 5;
-};
-const MISSION_DEFS = {
-  platformer:  { text: 'Собрать все звёзды и дойти до финиша', stars: true, goal: starGoal, metric: starMetric },
-  runnerhuman: { text: 'Дойти до финиша в обби с огненными шарами', goal: 1, metric: winMetric },
-  collector:   { text: 'Собрать все звёзды и найти выход из лабиринта', stars: true, goal: starGoal, metric: starMetric },
-  racer:       { text: 'Набрать 100 очков и прийти к финишу', goal: 100 },
-  quiz:        { text: 'Ответить правильно на вопросы викторины', goal: 50 },
-  catcher:     { text: 'Поймать яблоки и набрать 100 очков', goal: 100 },
-  snake:       { text: 'Вырасти и набрать 100 очков', goal: 100 },
-  pong:        { text: 'Выиграть матч в пинг-понг', goal: e => e.target || 7, metric: e => e.scoreP || 0 },
-  arkanoid:    { text: 'Разбить кирпичи и набрать 100 очков', goal: 100 },
-  shooter:     { text: 'Сбить пришельцев и набрать 100 очков', goal: 100 },
-  tictactoe:   { text: 'Выиграть партию в крестики-нолики', goal: 1, metric: e => e.wins || 0 },
-  memory:      { text: 'Найти все пары карточек', goal: e => e.pairs || 10, metric: e => e.matched || 0 },
-  math:        { text: 'Решить примеры и набрать 100 очков', goal: 100 },
-  starraid:    { text: 'Сбить 10 вражеских кораблей', goal: 100 },
-  tank:        { text: 'Пройти Батл Сити на 3 жизнях и уничтожить 20 танков', goal: 20, kills: 20, lives: 3, metric: e => e.hits || 0 },
-  range:       { text: 'Попасть по мишеням и набрать 100 очков', goal: 100 },
-  whack:       { text: 'Ударить кротов и набрать 100 очков', goal: 100 },
-  runner:      { text: 'Пробежать дистанцию и набрать 100 очков', goal: 100 },
-  reaction:    { text: 'Нажать вовремя и набрать 100 очков', goal: 100 },
-  defense:     { text: 'Отразить атаки и набрать 100 очков', goal: 100 },
-  farm:        { text: 'Собрать урожай и набрать 100 очков', goal: 100 },
-  duel:        { text: 'Победить в поединке героев', goal: 1, metric: winMetric },
-  brawl:       { text: 'Выиграть кулачный бой', goal: 1, metric: winMetric },
-  zombie:      { text: 'Обороняться и набрать 100 очков', goal: 100 },
-  rescue:      { text: 'Спасти друзей и набрать 100 очков', goal: 100 },
-  mazelava:    { text: 'Собрать ключи и выбраться из лабиринта', goal: 100 },
-  bomber:      { text: 'Взорвать кирпичи и найти выход', goal: 80 },
-  towerdef:    { text: 'Защитить крепость от всех волн', goal: 100 },
-  survival:    { text: 'Собрать канистры и финишировать', goal: 100 },
-  airfight:    { text: 'Сбить самолёты и набрать 100 очков', goal: 100 },
-  hockey:      { text: 'Забить шайбы и выиграть матч', goal: 100 },
-  fisher:      { text: 'Поймать рыбу и набрать 100 очков', goal: 100 },
-  gardener:    { text: 'Собрать урожай и набрать 100 очков', goal: 100 },
-  station:     { text: 'Починить станцию и собрать энергию', goal: 100 },
-  royale:      { text: 'Победить соперников и остаться в круге', goal: 100 }
-};
-function currentMission(p) {
-  const d = MISSION_DEFS[p && p.template];
-  return d ? Object.assign({ reward: MISSION_REWARD }, d)
-           : { text: 'Выиграть в этой игре', reward: MISSION_REWARD, goal: 1, metric: winMetric };
-}
-function missionGoal(def, e, p) {
-  return Math.max(1, typeof def.goal === 'function' ? def.goal(e, p) : def.goal);
-}
-function missionValue(def, e) {
-  if (!e) return 0;
-  const fn = def.metric || (x => x.score || 0);
-  const v = Number(fn(e)) || 0;
-  return Math.max(0, v);
-}
-function missionDone(p, e, win) {
-  if (!win || !p) return false;
-  const def = currentMission(p);
-  if (def.kills && (e.hits || 0) < def.kills) return false;
-  if (def.lives && (e.lives || 0) < def.lives) return false;
-  if (def.stars) return missionValue(def, e) >= missionGoal(def, e, p);
-  return true;
-}
-function renderMission() {
-  const bar = $('#missionBar');
-  if (!bar || !state.project) return;
-  const p = state.project, def = currentMission(p), e = state.engine;
-  const goal = missionGoal(def, e, p);
-  const done = !!(p.missions && p.missions[p.template]);
-  const val = done ? goal : Math.min(goal, missionValue(def, e));
-  $('#missionText').textContent = def.text;
-  $('#missionCount').textContent = `${val} / ${goal}`;
-  $('#missionFill').style.width = (goal ? val / goal * 100 : 0) + '%';
-  $('#missionReward').textContent = done ? '✔ Выполнено' : `+${def.reward} 🪙`;
-  bar.classList.toggle('done', done);
-  bar.classList.toggle('playing', state.mode === 'play');
-}
-function missionHudHtml() {
-  if (!state.project || !state.engine) return '';
-  const def = currentMission(state.project), e = state.engine;
-  const goal = missionGoal(def, e, state.project);
-  const done = !!(state.project.missions && state.project.missions[state.project.template]);
-  const val = done ? goal : Math.min(goal, missionValue(def, e));
-  return `<span class="hud-pill mission-hud">${done ? '✔' : '📋'} ${def.text} · ${val}/${goal}</span>`;
-}
 
 const DIFF = {
   easy:   { speed: 0.92, traffic: 0.85, time: 78, quizTime: 18, label: 'Лёгкая' },
@@ -690,10 +577,10 @@ const TEMPLATES = {
   },
   runner: {
     id: 'runner', title: 'Бегун', emoji: '🏃', color: '#e4f7ef',
-    tag: 'Аркада', desc: 'Герой бежит сам — прыгай через препятствия и собирай монетки. Сколько сможешь пробежать?',
-    features: ['Бесконечный бег', 'Прыжки', 'Монеты и очки'],
+    tag: 'Аркада', desc: 'Герой бежит сам — прыгай через препятствия и собирай звёзды. Сколько сможешь пробежать?',
+    features: ['Бесконечный бег', 'Прыжки', 'Звёзды и очки'],
     canvasTitle: 'Настройка бега', canvasSubtitle: 'Выбери скорость, жизни и дистанцию до победы',
-    hint: '💡 Пробел, ↑ или W — прыжок. Перепрыгивай 📦 и собирай 🪙.'
+    hint: '💡 Пробел, ↑ или W — прыжок. Перепрыгивай 📦 и собирай ⭐.'
   },
   reaction: {
     id: 'reaction', title: 'Быстрая реакция', emoji: '⚡', color: '#fff6d8',
@@ -709,11 +596,11 @@ const TEMPLATES = {
     tag: 'Стратегия', desc: 'Строй башни на траве и не подпускай врагов к замку. Продумай, где поставить защиту!',
     features: ['Постройка башен', 'Волги врагов', 'Ограниченный бюджет'],
     canvasTitle: 'Настройка защиты', canvasSubtitle: 'Настрой жизни замка, бюджет и сколько врагов отразить',
-    hint: '💡 Кликай по траве, чтобы построить башню за 14 монет. Башни сами стреляют по врагам.'
+    hint: '💡 Кликай по траве, чтобы построить башню за 14 кристаллов 💎. Башни сами стреляют по врагам.'
   },
   farm: {
     id: 'farm', title: 'Умная ферма', emoji: '🌾', color: '#eaf7df',
-    tag: 'Стратегия', desc: 'Сажай семена, поливай грядки и собирай урожай. Управляй водой и зарабатывай монеты!',
+    tag: 'Стратегия', desc: 'Сажай семена, поливай грядки и собирай урожай. Управляй водой и набирай очки!',
     features: ['Грядки', 'Полив и урожай', 'Таймер'],
     canvasTitle: 'Настройка фермы', canvasSubtitle: 'Выбери время, цель по урожаю и сколько воды даётся',
     hint: '💡 Клик по пустой грядке — посадить, по спелой — собрать урожай. Вода постепенно восстанавливается.'
@@ -778,10 +665,10 @@ const TEMPLATES = {
   },
   airfight: {
     id: 'airfight', title: 'Воздушный бой', emoji: '✈️', color: '#e2ecff',
-    tag: 'Шутер', desc: 'Веди самолёт и сбивай вражеские борта. За каждый сбитый — монетки!',
-    features: ['Стрельба', 'Вражеские самолёты', 'Монетки'],
+    tag: 'Шутер', desc: 'Веди самолёт и сбивай вражеские борта. За каждый сбитый — очки и звёзды!',
+    features: ['Стрельба', 'Вражеские самолёты', 'Звёзды'],
     canvasTitle: 'Настройка воздушного боя', canvasSubtitle: 'Настрой число целей, время и скорость',
-    hint: '💡 Стрелки или WASD — полёт, Пробел — стрельба. Сбивай ✈️ и собирай 🪙.'
+    hint: '💡 Стрелки или WASD — полёт, Пробел — стрельба. Сбивай ✈️ и собирай ⭐.'
   },
   hockey: {
     id: 'hockey', title: 'Аркадный хоккей', emoji: '🏒', color: '#e7f4ff',
@@ -910,7 +797,7 @@ const TIPS = {
   ],
   runner: [
     'Прыгай заранее, а не в самый последний момент.',
-    'Монетки дают очки, но ради них можно и споткнуться.',
+    'Звёзды дают очки, но ради них можно и споткнуться.',
     'Чем больше дистанция, тем дольше бег — тренируйся!'
   ],
   reaction: [
@@ -921,7 +808,7 @@ const TIPS = {
   defense: [
     'Ставь башни рядом с дорогой — так они дольше стреляют по врагам.',
     'Не строй башни на самой дороге.',
-    'Накапливай монеты: позже можно поставить больше башен.'
+    'Накапливай кристаллы 💎: позже можно поставить больше башен.'
   ],
   farm: [
     'Поливай грядки сразу после посадки.',
@@ -951,7 +838,7 @@ const TIPS = {
   mazelava: [
     'Ключи лежат в свободных проходах — обходи стены, а не проламывай их.',
     'Лава отнимает жизнь. Обходи её по краю или беги быстрее.',
-    'Собранный 🔑 даёт 2 коина, а победа — ещё 10.'
+    'Собранный 🔑 даёт очки и засчитывается в цель.'
   ],
   bomber: [
     'Ставь бомбу рядом с кирпичом и сразу отбегай на две клетки.',
@@ -961,26 +848,26 @@ const TIPS = {
   towerdef: [
     'Ставь башни рядом с дорогой врагов — так они стреляют чаще.',
     'Всего можно построить 6 башен. Выбирай места для перекрёстков!',
-    'Каждый подбитый враг приносит 1 монетку.'
+    'Каждый подбитый враг приносит кристалл 💎 для новых башен.'
   ],
   survival: [
     'Держись середины — там больше места для маневра.',
-    'Канистра ⛽ даёт 2 коина и засчитывается в цель.',
+    'Канистра ⛽ даёт очки и засчитывается в цель.',
     'На трудной сложности камни летят быстрее.'
   ],
   airfight: [
     'Стреляй очередями: нажми и удерживай Пробел.',
-    'Сбитый самолёт даёт 2 коина, случайная монетка — ещё 2.',
+    'Сбитый самолёт даёт очки, случайная звезда ⭐ — ещё больше.',
     'Не подпускай врагов вниз — пропущенный отнимает жизнь.'
   ],
   hockey: [
     'Бей по шайбе краем клюшки — так она летит сильнее.',
-    'Гол даёт 3 коина и новую шайбу.',
+    'Гол даёт очки и новую шайбу.',
     'Вратарь следит за шайбой, но иногда ошибается — используй это!'
   ],
   fisher: [
     'Наводи удочку на рыбу и жми Пробел — крючок опустится сам.',
-    'Рыба даёт 2 коина, а бомба отнимает жизнь.',
+    'Рыба даёт очки, а бомба отнимает жизнь.',
     'Пойманную рыбу заменяет новая — лови сколько угодно!'
   ],
   gardener: [
@@ -991,7 +878,7 @@ const TIPS = {
   station: [
     'Кислород тает на глазах — успевай кликать по 🔋.',
     'Течи 💨 тоже важно чинить: если лопнет, станция потеряет жизнь.',
-    'Каждая собранная энергия даёт 2 коина.'
+    'Каждая собранная энергия даёт очки.'
   ],
   royale: [
     'Пуля летит в ближайшего бота — просто жми Пробел.',
@@ -1003,13 +890,13 @@ const TIPS = {
 
 /* Предметы, которые можно расставить на уровне */
 const ITEM_EMOJI = {
-  star: '⭐', enemy: '👾', coin: '🪙', gem: '💎',
+  star: '⭐', enemy: '👾', coin: '⭐', gem: '💎',
   heart: '❤️', spike: '🔺', tramp: '🌀', finish: '🏁'
 };
 const ITEMS = {
   wall:   { em: '🧱', label: 'Платформа', desc: 'По этой платформе герой ходит и прыгает.' },
   star:   { em: '⭐', label: 'Звезда', desc: 'Собери все звёзды, чтобы выиграть уровень!' },
-  coin:   { em: '🪙', label: 'Монетка', desc: 'Каждая монетка даёт 25 очков.' },
+  coin:   { em: '⭐', label: 'Звезда', desc: 'Каждая звезда даёт 25 очков.' },
   gem:    { em: '💎', label: 'Кристалл', desc: 'Кристалл даёт целых 100 очков!' },
   heart:  { em: '❤️', label: 'Сердце', desc: 'Добавляет герою одну жизнь.' },
   spike:  { em: '🔺', label: 'Шипы', desc: 'Опасные шипы! Не наступай на них.' },
@@ -1084,13 +971,13 @@ function defaultRunnerHumanLevel() {
   // Основной маршрут вверх
   seg(6, 9, 10); seg(9, 12, 8); seg(13, 16, 7);
   seg(17, 20, 6); seg(20, 23, 5); seg(22, 24, 4);
-  // Дополнительные ветки с наградами
+  // Дополнительные ветки с бонусами
   seg(2, 4, 10); seg(2, 4, 8); seg(15, 17, 4); seg(5, 7, 6);
   // Движущиеся платформы как в Roblox Studio
   grid[11][9] = 'mover'; grid[10][18] = 'moverv'; grid[8][19] = 'mover';
   // Контрольные точки
   grid[11][12] = 'checkpoint'; grid[6][14] = 'checkpoint'; grid[3][22] = 'checkpoint';
-  // Награды и опасности
+  // Бонусы и опасности
   [[7, 9], [10, 7], [15, 6], [18, 5], [21, 4], [3, 9], [6, 5]]
     .forEach(([x, y]) => { grid[y][x] = 'coin'; });
   grid[3][16] = 'gem';
@@ -1160,10 +1047,6 @@ function createProject(templateId) {
       narrate: true
     }
   };
-  p.coins = 0;
-  p.firstWin = false;
-  p.purchases = {};
-  p.missions = {};
   const extras = {
     runnerhuman: { hero: '🧑' },
     snake:     { snakeColor: '#38c172', food: '🍎' },
@@ -1198,25 +1081,23 @@ function createProject(templateId) {
 }
 
 /* ---------- Хранилище ---------- */
-function saveWallet() {
-  try { localStorage.setItem(WALLET_KEY, String(walletCoins)); } catch (e) { /* ignored */ }
-}
-function initWallet() {
-  const raw = localStorage.getItem(WALLET_KEY);
-  if (raw !== null) {
-    walletCoins = Math.max(0, Math.floor(Number(raw) || 0));
-    return;
+function purgeOldCurrency() {
+  const keysToRemove = ['coins', 'firstWin', 'purchases', 'missions'];
+  try { localStorage.removeItem('igrolab.wallet.v1'); } catch (e) { /* ignored */ }
+  for (const key of [STORAGE_KEY, PUB_KEY]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) continue;
+      let changed = false;
+      list.forEach(p => {
+        if (!p || typeof p !== 'object') return;
+        keysToRemove.forEach(k => { if (k in p) { delete p[k]; changed = true; } });
+      });
+      if (changed) localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) { /* ignored */ }
   }
-  const list = loadProjects();
-  walletCoins = list.reduce((sum, p) => sum + Math.max(0, Math.floor(Number(p.coins) || 0)), 0);
-  let changed = false;
-  list.forEach(p => {
-    if (Math.max(0, Math.floor(Number(p.coins) || 0)) > 0) { p.coins = 0; changed = true; }
-  });
-  if (changed) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) { /* ignored */ }
-  }
-  saveWallet();
 }
 function loadProjects() {
   try {
@@ -1263,7 +1144,7 @@ function saveProject(silent = false) {
   $('#saveStatus').textContent = '● Всё сохранено';
   $('#saveStatus').classList.remove('dirty');
   if (!silent) showToast('Игра сохранена! 💾', 'ok');
-  if (state.screen === 'gallery') { renderSaved(); updateCoinChip(); }
+  if (state.screen === 'gallery') renderSaved();
 }
 function markDirty() {
   state.dirty = true;
@@ -1273,61 +1154,9 @@ function markDirty() {
   state.saveTimer = setTimeout(() => saveProject(true), 1000);
 }
 
-/* ---------- Коины и магазин ---------- */
 function normalizeProgress(p) {
   if (!p) return;
-  if (p.template === 'tank' && p.settings) {
-    p.settings.lives = Math.max(3, Number(p.settings.lives) || 3);
-    p.settings.count = Math.max(20, Number(p.settings.count) || 20);
-  }
-  p.coins = Math.max(0, Math.floor(Number(p.coins) || 0));
-  p.firstWin = !!p.firstWin;
-  p.purchases = (p.purchases && typeof p.purchases === 'object') ? p.purchases : {};
-  p.missions = (p.missions && typeof p.missions === 'object') ? p.missions : {};
 }
-function getCoins() { return walletCoins; }
-function getTotalCoins() { return walletCoins; }
-function updateCoinChip() {
-  const el = $('#coinChip');
-  if (!el) return;
-  el.textContent = '🪙 ' + walletCoins;
-  el.title = 'Общие коины для всех игр';
-}
-function addCoins(n, reason) {
-  if (!n) return;
-  walletCoins += Math.max(0, Math.floor(n));
-  saveWallet();
-  updateCoinChip();
-  if (reason) showToast(`🪙 +${n} — ${reason}`, 'ok');
-}
-function spendCoins(n) {
-  if (!state.project || walletCoins < n) return false;
-  walletCoins -= n;
-  saveWallet();
-  updateCoinChip();
-  return true;
-}
-function openShop() {
-  const p = state.project;
-  if (!p) return;
-  normalizeProgress(p);
-  const coins = getCoins();
-  const mini = typeof MINI_IDS !== 'undefined' && MINI_IDS.includes(p.template);
-  const items = SHOP_ITEMS.filter(it => !it.miniOnly || mini);
-  openModal(`
-    <h3>🛒 Магазин предметов</h3>
-    <p class="modal-sub">Коины общие для всех игр: их можно тратить в любом магазине. Каждый предмет стоит ${COIN_PRICE} 🪙, сама покупка действует в этой игре.</p>
-    <div class="coin-balance">🪙 <b>${coins}</b> коинов</div>
-    <div class="shop-grid">${items.map(it => `
-      <button class="shop-item ${coins < COIN_PRICE ? 'poor' : ''}" data-buy="${it.id}" ${coins < COIN_PRICE ? 'disabled' : ''}>
-        <span class="shop-emoji">${it.em}</span>
-        <b>${it.title}</b>
-        <small>${it.desc}</small>
-        <span class="shop-price">${COIN_PRICE} 🪙</span>
-      </button>`).join('')}</div>
-    <div class="modal-actions"><button class="btn btn-primary" data-modal="close">Вернуться в игру 🎮</button></div>`);
-}
-
 /* ---------- Движки игр ---------- */
 class BaseEngine {
   constructor(p) { this.p = p; this.onFinish = () => {}; }
@@ -1336,49 +1165,6 @@ class BaseEngine {
   update(dt) {}
   draw(ctx) {}
   getHud() { return ''; }
-  buy(id) {
-    if (id === 'heart') {
-      if (typeof this.hearts === 'number') this.hearts++;
-      else if (typeof this.lives === 'number') this.lives++;
-      else if (this.p && this.p.settings) this.p.settings.lives = (this.p.settings.lives || 2) + 1;
-    } else if (id === 'score') {
-      this.score = (this.score || 0) + 100;
-    } else if (id === 'clock') {
-      for (const field of ['timeLeft', 'limit', 'remaining', 'qLeft']) {
-        if (typeof this[field] === 'number') this[field] += 10;
-      }
-      if (this.data && typeof this.data.oxygen === 'number') this.data.oxygen += 10;
-    } else if (id === 'bomb') {
-      for (const field of ['enemies', 'foes', 'targets', 'mobs', 'zombies']) {
-        if (Array.isArray(this[field])) this[field].forEach(e => { e.dead = true; });
-      }
-      if (Array.isArray(this.ents)) {
-        this.ents.forEach(e => { if (e.kind === 'enemy' || e.kind === 'bot' || e.kind === 'bombfish') e.dead = true; });
-      }
-    } else if (id === 'shield') {
-      this.shield = 8;
-    } else if (id === 'magnet') {
-      this.magnet = 10;
-    }
-    this.wrapEffects();
-  }
-  wrapEffects() {
-    if (this._fxWrapped) return;
-    this._fxWrapped = true;
-    const original = this.update.bind(this);
-    this.update = dt => {
-      if (this.shield > 0) {
-        this.shield = Math.max(0, this.shield - dt);
-        if (typeof this.hurt === 'function' && !this._shieldHurt) {
-          const hurt = this.hurt.bind(this);
-          this.hurt = (...args) => { if (this.shield > 0) return; return hurt(...args); };
-          this._shieldHurt = true;
-        }
-      }
-      if (this.magnet > 0) this.magnet = Math.max(0, this.magnet - dt);
-      original(dt);
-    };
-  }
   destroy() {}
 }
 
@@ -1401,8 +1187,6 @@ class GridEngine extends BaseEngine {
     if (pickup.got) return false;
     pickup.got = true;
     this.taken.add(pickup.key);
-    const gain = { points10: 1, points25: 2, points50: 3, points100: 5, goal: 2, life: 1 }[pickup.eff] || 0;
-    if (gain) addCoins(gain);
     return true;
   }
   itemAt(x, y) { return this.pickups.find(it => !it.got && it.x === x && it.y === y); }
@@ -3385,7 +3169,7 @@ class RunnerEngine extends GenreEngine {
     }
     ctx.fillStyle = '#3f8f57'; ctx.fillRect(0, H - 72, W, 72);
     ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(0, H - 72, W, 4);
-    for (const o of this.things) drawEmoji(ctx, o.coin ? '🪙' : '📦', o.x, o.y, 40);
+    for (const o of this.things) drawEmoji(ctx, o.coin ? '⭐' : '📦', o.x, o.y, 40);
     drawEmoji(ctx, this.p.settings.hero || '🏃', this.hero.x, this.hero.y, 50);
     this.edit(ctx, '🏃', 'Бегун', `Пробеги ${this.goalMeters} м, прыгая через коробки.`);
   }
@@ -3486,7 +3270,7 @@ class DefenseEngine extends GenreEngine {
     const s = this.spots.find(s => !s.tower && Math.hypot(s.x - x, s.y - y) < 50);
     if (s && this.gold >= 14) {
       s.tower = true; s.cool = 0; this.gold -= 14; beep(560, .08);
-    } else showToast('Нужно 14 монет и свободное место', 'warn');
+    } else showToast('Нужно 14 💎 и свободное место', 'warn');
   }
   draw(ctx) {
     drawBackdrop(ctx, this.p, { top: '#4a8f57', bottom: '#265c39', motif: 'grid' });
@@ -3498,10 +3282,10 @@ class DefenseEngine extends GenreEngine {
     for (const f of this.foes) drawEmoji(ctx, '👾', f.x, f.y, 38);
     drawEmoji(ctx, '🏰', 48, H / 2, 74);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 16px "Trebuchet MS", sans-serif';
-    ctx.fillText('🪙 ' + this.gold, W / 2, 32);
-    this.edit(ctx, '🏰', 'Защита замка', `Отрази ${this.goal} врагов. Башня стоит 14 монет.`);
+    ctx.fillText('💎 ' + this.gold, W / 2, 32);
+    this.edit(ctx, '🏰', 'Защита замка', `Отрази ${this.goal} врагов. Башня стоит 14 кристаллов 💎.`);
   }
-  getHud() { return this.goalHud('👾') + this.heartHud() + this.pill('🪙', this.gold) + this.timeHud(); }
+  getHud() { return this.goalHud('👾') + this.heartHud() + this.pill('💎', this.gold) + this.timeHud(); }
 }
 
 /* ---------- Стратегия 2: Умная ферма ---------- */
@@ -3782,7 +3566,7 @@ class RescueEngine extends GenreEngine {
 
 const MINI_EMOJI = {
   key: '🔑', lava: '🔥', enemy: '👾', exit: '🚪', rock: '🪨', fuel: '⛽',
-  coin: '🪙', fish: '🐟', bombfish: '💣', energy: '🔋', leak: '💨', bot: '🤖'
+  coin: '⭐', fish: '🐟', bombfish: '💣', energy: '🔋', leak: '💨', bot: '🤖'
 };
 /* Один общий движок для десяти новых аркадных режимов */
 class MiniEngine extends BaseEngine {
@@ -3888,10 +3672,9 @@ class MiniEngine extends BaseEngine {
       }
     }
   }
-  collect(e, points, coins) {
+  collect(e, points) {
     if (e.dead) return;
     e.dead = true; this.score += points; this.count++;
-    if (coins) addCoins(coins);
     beep(880, .08); FX.burst(e.x + e.w / 2, e.y + e.h / 2, '#ffd166', 6);
     if (this.count >= this.goal) this.win('Цель достигнута! Ты молодец! 🎉');
   }
@@ -3915,7 +3698,7 @@ class MiniEngine extends BaseEngine {
       if (pl.state === 0) { pl.state = 1; beep(520, .06); showToast('🌱 Семечко посажено', 'ok'); }
       else if (pl.state === 1) { pl.state = 2; pl.t = 0; beep(620, .06); showToast('💧 Полито! Жди урожай', 'ok'); }
       else if (pl.state === 3) {
-        pl.state = 0; this.score += 30; this.count++; addCoins(3);
+        pl.state = 0; this.score += 30; this.count++;
         beep(880, .1); FX.burst(pl.x + 20, pl.y + 20, '#ffd166', 8);
         if (this.count >= this.goal) this.win('Сад расцвёл! Ты собрал весь урожай 🌻');
       } else if (pl.state === 4) { pl.state = 0; this.score += 10; beep(600, .06); showToast('🌿 Сорняк убран!', 'ok'); }
@@ -3923,7 +3706,7 @@ class MiniEngine extends BaseEngine {
       for (const e of this.ents) {
         if (e.dead) continue;
         if (!(x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h)) continue;
-        if (e.kind === 'energy') { this.data.oxygen = Math.min(this.limit, this.data.oxygen + 14); this.collect(e, 20, 2); }
+        if (e.kind === 'energy') { this.data.oxygen = Math.min(this.limit, this.data.oxygen + 14); this.collect(e, 20); }
         else if (e.kind === 'leak') { e.dead = true; this.score += 10; beep(600, .07); showToast('🔧 Течь заделана!', 'ok'); }
       }
     }
@@ -3945,7 +3728,7 @@ class MiniEngine extends BaseEngine {
         }
         for (const e of this.ents) {
           if (e.dead) continue;
-          if (e.kind === 'key' && aabb(this.player, e)) this.collect(e, 20, 2);
+          if (e.kind === 'key' && aabb(this.player, e)) this.collect(e, 20);
           else if (e.kind === 'lava' && aabb(this.player, e)) this.hurt();
         }
         break;
@@ -3970,7 +3753,7 @@ class MiniEngine extends BaseEngine {
             if (e.dead || ['brick', 'enemy'].indexOf(e.kind) === -1) continue;
             if (Math.abs(e.x - b.x) < CELL * 1.3 && Math.abs(e.y - b.y) < CELL * 1.3) {
               e.dead = true; FX.burst(e.x + 12, e.y + 12, '#ff9f43', 10);
-              if (e.kind === 'brick') { this.score += 10; this.count++; addCoins(1); }
+              if (e.kind === 'brick') { this.score += 10; this.count++; }
               else this.score += 50;
             }
           }
@@ -4026,7 +3809,7 @@ class MiniEngine extends BaseEngine {
           if (!b.target || b.target.dead || b.life <= 0) { b.life = 0; continue; }
           const dx = b.target.x + 13 - b.x, dy = b.target.y + 13 - b.y, dd = Math.hypot(dx, dy) || 1;
           if (dd < 16) {
-            b.target.dead = true; b.life = 0; this.score += 25; this.count++; addCoins(1);
+            b.target.dead = true; b.life = 0; this.score += 25; this.count++;
             FX.burst(b.target.x, b.target.y, '#5ac8fa', 8);
           } else { b.x += dx / dd * 350 * dt; b.y += dy / dd * 350 * dt; }
         }
@@ -4045,7 +3828,7 @@ class MiniEngine extends BaseEngine {
           if (e.dead) continue;
           e.y += (e.vy || 0) * dt;
           if (aabb(this.player, e)) {
-            if (e.kind === 'fuel') this.collect(e, 20, 2);
+            if (e.kind === 'fuel') this.collect(e, 20);
             else { e.dead = true; this.hurt(); }
           }
         }
@@ -4068,7 +3851,7 @@ class MiniEngine extends BaseEngine {
           if (e.dead) continue;
           e.y += (e.vy || 0) * dt; e.x += (e.vx || 0) * dt;
           if (e.y > H + 30) { e.dead = true; this.hurt(); continue; }
-          if (e.kind === 'coin' && aabb(this.player, e)) this.collect(e, 15, 2);
+          if (e.kind === 'coin' && aabb(this.player, e)) this.collect(e, 15);
           else if (e.kind === 'enemy' && aabb(this.player, e)) { e.dead = true; this.hurt(); }
         }
         for (const b of this.bullets) {
@@ -4076,7 +3859,7 @@ class MiniEngine extends BaseEngine {
           for (const e of this.ents) {
             if (e.dead || e.kind !== 'enemy') continue;
             if (aabb({ x: b.x - 4, y: b.y - 4, w: 8, h: 8 }, e)) {
-              e.dead = true; b.life = 0; this.score += 50; this.count++; addCoins(2);
+              e.dead = true; b.life = 0; this.score += 50; this.count++;
               FX.burst(e.x, e.y, '#ff6b81', 8);
               if (this.count >= this.goal) this.win('Все вражеские самолёты сбиты! ✈️');
             }
@@ -4102,8 +3885,8 @@ class MiniEngine extends BaseEngine {
           puck.x = ai.x - puck.w; puck.vx = -(Math.abs(puck.vx) + 20); beep(440, .05);
         }
         if (puck.x > W) {
-          this.count++; this.score += 100; addCoins(3); beep(880, .14);
-          showToast('🏒 Гол! +3 коина', 'ok');
+          this.count++; this.score += 100; beep(880, .14);
+          showToast('🏒 Гол! +100 очков', 'ok');
           this.data.puck = { x: W / 2, y: H / 2, vx: -180, vy: rand(-80, 80), w: 16, h: 16 };
           if (this.count >= this.goal) this.win('Ты забил все шайбы! 🏒');
         }
@@ -4130,7 +3913,7 @@ class MiniEngine extends BaseEngine {
           if (e.x < 10 || e.x > W - 30) e.vx *= -1;
           if (aabb(hook, e)) {
             e.dead = true;
-            if (e.kind === 'fish') this.collect(e, 25, 2);
+            if (e.kind === 'fish') this.collect(e, 25);
             else { this.hurt(); this.data.hookDown = false; }
           }
         }
@@ -4196,7 +3979,7 @@ class MiniEngine extends BaseEngine {
           if (e.y < 10 || e.y > H - 36) e.vy *= -1;
           if (Math.hypot(e.x + 13 - cx, e.y + 13 - cy) > this.data.zone) {
             e.t = (e.t || 0) + dt;
-            if (e.t > 3) { e.dead = true; this.score += 50; this.count++; addCoins(2); }
+            if (e.t > 3) { e.dead = true; this.score += 50; this.count++; }
           }
           if (aabb(e, this.player)) this.hurt();
         }
@@ -4205,7 +3988,7 @@ class MiniEngine extends BaseEngine {
           for (const e of this.ents) {
             if (e.dead || e.kind !== 'bot') continue;
             if (aabb({ x: b.x - 5, y: b.y - 5, w: 10, h: 10 }, e)) {
-              e.dead = true; b.life = 0; this.score += 50; this.count++; addCoins(2);
+              e.dead = true; b.life = 0; this.score += 50; this.count++;
               FX.burst(e.x, e.y, '#ff6b81', 8);
               if (this.count >= this.goal) this.win('Ты победил всех соперников! 👑');
             }
@@ -4293,7 +4076,6 @@ class MiniEngine extends BaseEngine {
     else if (this.limit) progress += ` · ⏱ ${Math.max(0, Math.ceil(this.limit - this.time))} с`;
     return `<span class="hud-pill">♥ ${'♥'.repeat(Math.max(0, this.hearts))}</span>` +
            `<span class="hud-pill">⭐ ${this.score}</span>` +
-           `<span class="hud-pill">🪙 ${getCoins()}</span>` +
            `<span class="hud-pill">${progress}</span>`;
   }
 }
@@ -4328,26 +4110,7 @@ function makeEngine(p) {
   else if (MINI_IDS.includes(p.template)) e = new MiniEngine(p);
   else e = new QuizEngine(p, $('#interactiveLayer'));
   normalizeProgress(p);
-  let rewarded = false;
-  const baseReset = e.reset.bind(e);
-  e.reset = () => { rewarded = false; baseReset(); };
-  const baseFinish = e.onFinish;
-  e.onFinish = (win, msg) => {
-    if (win && !rewarded) {
-      rewarded = true;
-      const first = !p.firstWin;
-      p.firstWin = true;
-      addCoins(10 + (first ? 10 : 0), first ? 'первая победа!' : 'победа!');
-      const mission = currentMission(p);
-      if (!p.missions[p.template] && missionDone(p, e, true)) {
-        p.missions[p.template] = true;
-        addCoins(mission.reward, 'задание выполнено! 📋');
-      }
-      saveProject(true);
-      renderMission();
-    }
-    baseFinish(win, msg);
-  };
+  e.onFinish = (win, msg) => handleFinish(win, msg);
   return e;
 }
 
@@ -4442,7 +4205,6 @@ function openEditor(project) {
   renderTools();
   renderProps();
   updateChips();
-  renderMission();
   showScreen('editor');
 }
 function goGallery() {
@@ -4455,7 +4217,6 @@ function goGallery() {
   showScreen('gallery');
   renderSaved();
   renderPublished();
-  updateCoinChip();
 }
 function updateEditorHeader() {
   const p = state.project, t = TEMPLATES[p.template];
@@ -4468,7 +4229,6 @@ function updateEditorHeader() {
 function updateChips() {
   const p = state.project;
   if (!p) return;
-  updateCoinChip();
   let n = 0;
   if (p.level && p.level.grid) n = p.level.grid.flat().filter(Boolean).length;
   if (p.template === 'quiz') n = p.questions.length;
@@ -4508,8 +4268,6 @@ function setMode(mode) {
   $('#btnMode').textContent = playing ? '✏️ В редактор' : '▶ Играть';
   $('#btnMode').className = playing ? 'btn btn-accent' : 'btn btn-primary';
   $('#btnFullscreen').classList.toggle('hidden', !playing);
-  $('#btnShop').classList.toggle('hidden', !playing);
-  renderMission();
   if (!playing && isFullscreen()) exitFullscreen();
   $('#playHud').classList.toggle('hidden', !playing);
   $('#resultOverlay').classList.add('hidden');
@@ -4520,7 +4278,7 @@ function setMode(mode) {
   state.engine.reset();
   state.engine.setPlaying(playing);
   if (playing) {
-    lastHudHtml = missionHudHtml() + state.engine.getHud();
+    lastHudHtml = state.engine.getHud();
     $('#playHud').innerHTML = lastHudHtml;
     if (state.project.settings.narrate && !state.project.settings.voice) Speech.speak(rulesText(state.project));
     Voice.start();
@@ -4637,7 +4395,7 @@ function customItemsSection(p) {
   const items = p.customItems || [];
   const emojis = ['🍎','🍐','🍇','🍓','🍌','🥕','🧀','🍪','🍬','🍭','🌲','🌸','🌵','🌻',
     '🎈','🌟','⭐','🌈','🦋','🐝','🐶','🐱','🦊','🏀','⚽','🎁','🔔','🗝️','💐','🧩',
-    '🚗','🛸','🪙','💎','❤️','🔺','🌀','🏁','👾','🚩'];
+    '🚗','🛸','⭐','💎','❤️','🔺','🌀','🏁','👾','🚩'];
   return `<div class="tool-section">
     <h4 class="tool-title">✨ Свои предметы</h4>
     <p class="hint-mini">Придумай предмет — и он появится в кисти выше!</p>
@@ -4867,7 +4625,7 @@ function miniSection(p) {
       <input type="range" id="fldSeconds" min="20" max="150" step="5" value="${p.settings.seconds}">
       <span class="range-value" id="secondsVal">${p.settings.seconds}</span>
     </div>
-    <p class="hint-mini">За задания и победу ты получаешь 🪙 коины. Потрать их можно в магазине во время игры.</p>
+    <p class="hint-mini">Собирай звёзды и набирай очки — так игра получается интереснее!</p>
   </div>`;
 }
 function renderTools() {
@@ -4913,7 +4671,7 @@ function renderProps() {
     html += `<div class="prop-card"><h4>📊 Статистика уровня</h4>
       <div class="stat-row"><span>Платформ / стен</span><b>${count('wall')}</b></div>
       <div class="stat-row"><span>⭐ Звёзд</span><b>${count('star')}</b></div>
-      <div class="stat-row"><span>🪙 Монеток</span><b>${count('coin')}</b></div>
+      <div class="stat-row"><span>🌟 Бонусов</span><b>${count('coin')}</b></div>
       <div class="stat-row"><span>💎 Кристаллов</span><b>${count('gem')}</b></div>
       <div class="stat-row"><span>❤️ Сердец</span><b>${count('heart')}</b></div>
       <div class="stat-row"><span>🔺 Шипов</span><b>${count('spike')}</b></div>
@@ -4956,12 +4714,6 @@ function renderProps() {
     html += `<div class="prop-card"><h4>📊 Настройки</h4>` +
       extraStats[p.template].map(([l, v]) => `<div class="stat-row"><span>${l}</span><b>${v}</b></div>`).join('') + `</div>`;
   }
-  html += `<div class="prop-card"><h4>🪙 Коины и магазин</h4>
-    <div class="stat-row"><span>Общих коинов</span><b>${getCoins()} 🪙</b></div>
-    <div class="stat-row"><span>Цена предмета</span><b>${COIN_PRICE} 🪙</b></div>
-    <div class="stat-row"><span>За победу</span><b>+10 🪙</b></div>
-    <div class="stat-row"><span>Первая победа</span><b>ещё +10 🪙</b></div>
-  </div>`;
   html += `<div class="prop-card"><h4>💡 Полезные советы</h4><ul class="tip-list">${TIPS[p.template].map(t => `<li>${t}</li>`).join('')}</ul></div>`;
   $('#propsPanel').innerHTML = html;
 }
@@ -4982,8 +4734,8 @@ function openHelp() {
     <ol class="modal-steps">
       <li><b>Выбери шаблон</b>: всего 35 игр. Шутеры — «Звёздный рейд», «Батл Сити», «Меткий тир». Аркада — «Бей кротов», «Бегун», «Быстрая реакция». Стратегии — «Защита замка», «Умная ферма», «Поединок героев». Экшен — «Кулачный бой», «Оборона от зомби», «Спаси друзей». Новые режимы: «Лавовый лабиринт», «Бомбовый квартал», «Защита крепости», «Гонка на выживание», «Воздушный бой», «Аркадный хоккей», «Ловля рыбы», «Волшебный сад», «Космическая станция», «Королевская битва». Плюс «Бегущий человек» (обби с огненными шарами), платформер, лабиринт, гонки, викторина, ловля яблок, змейка, пинг-понг, кирпичи, шутер, крестики-нолики, память и математика.</li>
       <li><b>Настрой игру слева</b>: цвета, героя, сложность, скорость, жизни. Можно включить голосовое управление.</li>
-      <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй монетки, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
-      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим. Кнопка «🛒 Магазин» тратит коины этой игры на предметы. Вверху показано задание игры: выполни его и получи награду коинами.</li>
+      <li><b>Сделай свой уровень</b>: рисуй по полю кистью и расставляй звёзды, кристаллы, сердца, шипы, трамплины и финиш. А в разделе «✨ Свои предметы» придумай свой предмет — выбери картинку, название и что он будет делать.</li>
+      <li><b>Нажми «▶ Играть»</b> и проверь игру. Кнопка «🔊 Рассказать правила» прочитает подсказку вслух, а «⛶ На весь экран» сделает поле большим. Набирай как можно больше очков и пытайся побить свой рекорд!</li>
       <li><b>Сохрани или поделись</b>: «💾 Сохранить» — в браузере, «🌟 В галерею» — на общей странице, «🚀 Поделиться» — ссылка другу.</li>
     </ol>
     <p class="modal-sub">📱 На телефоне во время игры появятся кнопки «▲ ◀ ▼ ▶» и «⚡ Действие» — нажимай их пальцами. В играх «Меткий тир», «Бей кротов», «Быстрая реакция», «Защита замка», «Умная ферма» и «Поединок героев» кнопки не нужны: просто нажимай пальцем прямо по полю.</p>
@@ -5040,7 +4792,6 @@ function importProject(obj) {
   p.id = uid();
   p.settings = Object.assign(createProject(obj.template).settings, p.settings || {});
   normalizeProgress(p);
-  p.coins = 0;
   p.name = String(p.name || 'Моя игра').slice(0, 40);
   p.createdAt = p.createdAt || Date.now();
   p.updatedAt = Date.now();
@@ -5151,22 +4902,6 @@ function bindEvents() {
 
   $('#modalRoot').addEventListener('click', e => {
     if (e.target.id === 'modalRoot') { closeModal(); return; }
-    const buy = e.target.closest('[data-buy]');
-    if (buy) {
-      const item = SHOP_ITEMS.find(x => x.id === buy.dataset.buy);
-      if (!item) return;
-      if (getCoins() < COIN_PRICE || !spendCoins(COIN_PRICE)) {
-        showToast('Не хватает коинов — собери 🪙 или выиграй!', 'warn');
-        return;
-      }
-      const p = state.project;
-      p.purchases[item.id] = (p.purchases[item.id] || 0) + 1;
-      if (state.engine && state.engine.buy) state.engine.buy(item.id);
-      saveProject(true);
-      showToast(`${item.em} ${item.title} — куплено!`, 'ok');
-      openShop();
-      return;
-    }
     const b = e.target.closest('[data-modal]');
     if (!b) return;
     if (b.dataset.modal === 'close') closeModal();
@@ -5196,7 +4931,6 @@ function bindEvents() {
     markDirty();
   });
   $('#btnMode').addEventListener('click', () => setMode(state.mode === 'play' ? 'edit' : 'play'));
-  $('#btnShop').addEventListener('click', () => { if (state.mode === 'play') openShop(); else showToast('Магазин откроется, когда начнёшь игру 🛒', 'warn'); });
   $('#resultOverlay').addEventListener('click', e => {
     const b = e.target.closest('[data-res]');
     if (!b) return;
@@ -5461,10 +5195,9 @@ function loop(ts) {
       hudAcc += dt;
       if (hudAcc > 0.15) {
         hudAcc = 0;
-        const html = missionHudHtml() + state.engine.getHud();
+        const html = state.engine.getHud();
         if (html !== lastHudHtml) { $('#playHud').innerHTML = html; lastHudHtml = html; }
-        renderMission();
-      }
+            }
     }
     FX.update(dt);
     state.engine.draw(ctx);
@@ -5476,8 +5209,7 @@ function loop(ts) {
 }
 
 /* ---------- Запуск ---------- */
-initWallet();
+purgeOldCurrency();
 renderGallery();
-updateCoinChip();
 bindEvents();
 requestAnimationFrame(loop);
